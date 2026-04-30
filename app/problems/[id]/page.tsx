@@ -1,45 +1,24 @@
 "use client"
 
 import Link from "next/link"
-import { use, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
-const problems = [
-  {
-    id: "1",
-    title: "東大2023 第1問",
-    tags: ["微分", "最大値", "グラフ"],
-    content: "関数 f(x) の最大値を求めよ。",
-  },
-  {
-    id: "2",
-    title: "東大2022 第3問",
-    tags: ["確率", "サイコロ"],
-    content: "サイコロを投げる試行について考える。",
-  },
-  {
-    id: "3",
-    title: "東大2021 第2問",
-    tags: ["整数", "証明"],
-    content: "整数の性質を証明せよ。",
-  },
-]
+type Problem = {
+  id: string
+  title: string
+  content: string | null
+  tags: string[]
+}
 
-const initialReviews = [
-  {
-    problemId: "1",
-    rating: 5,
-    user: "優斗",
-    date: "2026-04-30",
-    comment: "微分の典型問題だが、最大値の存在条件まで意識できる良問。",
-  },
-  {
-    problemId: "1",
-    rating: 4,
-    user: "友人A",
-    date: "2026-04-30",
-    comment: "計算だけでなくグラフの見方も問われていて勉強になる。",
-  },
-]
+type Review = {
+  problemId: string
+  rating: number
+  user: string
+  date: string
+  comment: string
+}
 
 function StarRating({ value }: { value: number }) {
   return (
@@ -60,12 +39,7 @@ function StarRating({ value }: { value: number }) {
               height: "20px",
             }}
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              style={{ color: "#d1d5db" }}
-            >
+            <svg viewBox="0 0 24 24" width="20" height="20" style={{ color: "#d1d5db" }}>
               <path
                 fill="currentColor"
                 d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
@@ -83,12 +57,7 @@ function StarRating({ value }: { value: number }) {
                 display: "inline-block",
               }}
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                style={{ color: "#f59e0b" }}
-              >
+              <svg viewBox="0 0 24 24" width="20" height="20" style={{ color: "#f59e0b" }}>
                 <path
                   fill="currentColor"
                   d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
@@ -102,18 +71,60 @@ function StarRating({ value }: { value: number }) {
   )
 }
 
-export default function ProblemDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = use(params)
+export default function ProblemDetail() {
+  const params = useParams()
+  const id = String(params.id)
 
-  const [reviews, setReviews] = useState(initialReviews)
+  const [problem, setProblem] = useState<Problem | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const [reviews, setReviews] = useState<Review[]>([])
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
 
-  const problem = problems.find((p) => p.id === id)
+  useEffect(() => {
+    async function fetchProblem() {
+      const { data, error } = await supabase
+        .from("problems")
+        .select(`
+          id,
+          title,
+          content,
+          problem_tags (
+            tags ( name )
+          )
+        `)
+        .eq("id", id)
+        .single()
+
+      if (error) {
+        console.error("問題取得エラー:", error.message)
+        setLoading(false)
+        return
+      }
+
+      setProblem({
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        tags: (data.problem_tags ?? []).map((pt: any) => pt.tags.name),
+      })
+
+      setLoading(false)
+    }
+
+    fetchProblem()
+  }, [id])
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`reviews-${id}`)
+    if (saved) {
+      setReviews(JSON.parse(saved))
+    } else {
+      setReviews([])
+    }
+  }, [id])
+
   const problemReviews = reviews.filter((r) => r.problemId === id)
 
   const averageRating =
@@ -124,15 +135,36 @@ export default function ProblemDetail({
 
   const roundedAverage = Math.floor(averageRating * 10) / 10
 
-  useEffect(() => {
-    const saved = localStorage.getItem(`reviews-${id}`)
-    if (saved) {
-      setReviews(JSON.parse(saved))
-    }
-  }, [id])
+  if (loading) {
+    return (
+      <main className="p-10">
+        <nav className="mb-6 text-sm text-gray-500">
+          <Link href="/" className="hover:underline">
+            学問ログ（仮）
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">読み込み中</span>
+        </nav>
+
+        <div>読み込み中...</div>
+      </main>
+    )
+  }
 
   if (!problem) {
-    return <div>問題が見つかりません</div>
+    return (
+      <main className="p-10">
+        <nav className="mb-6 text-sm text-gray-500">
+          <Link href="/" className="hover:underline">
+            学問ログ（仮）
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">問題が見つかりません</span>
+        </nav>
+
+        <div>問題が見つかりません</div>
+      </main>
+    )
   }
 
   return (
@@ -149,15 +181,15 @@ export default function ProblemDetail({
         <h1 className="text-2xl font-bold mb-2">{problem.title}</h1>
 
         <div className="flex gap-2 mb-4 flex-wrap">
-        {problem.tags.map((tag) => (
+          {problem.tags.map((tag) => (
             <Link
-                key={tag}
-                href={`/?q=${encodeURIComponent(tag)}`}
-                className="text-sm text-blue-500 hover:underline"
+              key={tag}
+              href={`/?q=${encodeURIComponent(tag)}`}
+              className="text-sm text-blue-500 hover:underline"
             >
-                #{tag}
+              #{tag}
             </Link>
-            ))}
+          ))}
         </div>
 
         <div className="mb-4 text-sm">
@@ -236,7 +268,7 @@ export default function ProblemDetail({
             onClick={() => {
               if (!comment.trim()) return
 
-              const newReview = {
+              const newReview: Review = {
                 problemId: id,
                 rating,
                 user: "あなた",

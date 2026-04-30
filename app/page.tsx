@@ -3,14 +3,12 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { supabase } from "@/lib/supabase"
 
-type Problem = {
-  id: string
-  title: string
-  content: string | null
-  tags: string[]
-}
+const problems = [
+  { id: "1", title: "東大2023 第1問", tags: ["微分", "最大値", "グラフ"] },
+  { id: "2", title: "東大2022 第3問", tags: ["確率", "サイコロ"] },
+  { id: "3", title: "東大2021 第2問", tags: ["整数", "証明"] },
+]
 
 function StarRating({ value }: { value: number }) {
   return (
@@ -37,37 +35,11 @@ function StarRating({ value }: { value: number }) {
 }
 
 export default function Home() {
-  const [problems, setProblems] = useState<Problem[]>([])
   const [stats, setStats] = useState<Record<string, { average: number; count: number }>>({})
   const [sortMode, setSortMode] = useState<"default" | "popular">("default")
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get("q") ?? ""
   const [query, setQuery] = useState(initialQuery)
-
-  useEffect(() => {
-    async function fetchProblems() {
-      const { data, error } = await supabase
-        .from("problems")
-        .select("id, title, content, created_at")
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Supabase取得エラー:", error.message)
-        return
-      }
-
-      setProblems(
-        (data ?? []).map((p) => ({
-          id: p.id,
-          title: p.title,
-          content: p.content,
-          tags: [],
-        }))
-      )
-    }
-
-    fetchProblems()
-  }, [])
 
   useEffect(() => {
     const nextStats: Record<string, { average: number; count: number }> = {}
@@ -86,7 +58,7 @@ export default function Home() {
     })
 
     setStats(nextStats)
-  }, [problems])
+  }, [])
 
   return (
     <main className="p-10">
@@ -123,12 +95,11 @@ export default function Home() {
 
             return (
               p.title.toLowerCase().includes(keyword) ||
-              (p.content ?? "").toLowerCase().includes(keyword) ||
               p.tags.some((tag) => tag.toLowerCase().includes(keyword))
             )
           })
           .sort((a, b) => {
-            if (sortMode === "default") return 0
+            if (sortMode === "default") return Number(a.id) - Number(b.id)
 
             const aAvg = stats[a.id]?.average ?? 0
             const bAvg = stats[b.id]?.average ?? 0
@@ -150,12 +121,6 @@ export default function Home() {
                       {rounded.toFixed(1)}（{count}件）
                     </span>
                   </div>
-
-                  {p.content && (
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                      {p.content}
-                    </p>
-                  )}
 
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {p.tags.map((tag) => (

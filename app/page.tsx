@@ -2,173 +2,197 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 type Problem = {
   id: string
   title: string
   content: string | null
-  tags: string[]
+}
+
+type Review = {
+  problemId: string
+  rating: number
+  comment: string
+  createdAt: string
 }
 
 function StarRating({ value }: { value: number }) {
   return (
     <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
-
-        return (
-          <span key={star} style={{ position: "relative", display: "inline-block", width: "16px", height: "16px" }}>
-            <svg viewBox="0 0 24 24" width="16" height="16" style={{ color: "#d1d5db" }}>
-              <path fill="currentColor" d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z" />
-            </svg>
-
-            <span style={{ position: "absolute", top: 0, left: 0, width: `${fillPercent}%`, height: "16px", overflow: "hidden" }}>
-              <svg viewBox="0 0 24 24" width="16" height="16" style={{ color: "#f59e0b" }}>
-                <path fill="currentColor" d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z" />
-              </svg>
-            </span>
-          </span>
-        )
-      })}
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span key={star} style={{ color: star <= value ? "#f59e0b" : "#d1d5db" }}>
+          ★
+        </span>
+      ))}
     </span>
   )
 }
 
-export default function Home() {
-  const [problems, setProblems] = useState<Problem[]>([])
-  const [stats, setStats] = useState<Record<string, { average: number; count: number }>>({})
-  const [sortMode, setSortMode] = useState<"default" | "popular">("default")
-  const searchParams = useSearchParams()
-  const initialQuery = searchParams.get("q") ?? ""
-  const [query, setQuery] = useState(initialQuery)
+export default function ProblemDetailPage() {
+  const params = useParams()
+  const id = String(params.id)
+
+  const [problem, setProblem] = useState<Problem | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const [rating, setRating] = useState(5)
+  const [comment, setComment] = useState("")
+  const [reviews, setReviews] = useState<Review[]>([])
 
   useEffect(() => {
-    async function fetchProblems() {
+    async function fetchProblem() {
       const { data, error } = await supabase
         .from("problems")
-        .select("id, title, content, created_at")
-        .order("created_at", { ascending: false })
+        .select("id, title, content")
+        .eq("id", id)
+        .single()
 
       if (error) {
-        console.error("Supabase取得エラー:", error.message)
-        return
+        console.error("問題取得エラー:", error.message)
       }
 
-      setProblems(
-        (data ?? []).map((p) => ({
-          id: p.id,
-          title: p.title,
-          content: p.content,
-          tags: [],
-        }))
-      )
+      setProblem(data ?? null)
+      setLoading(false)
     }
 
-    fetchProblems()
-  }, [])
+    fetchProblem()
+  }, [id])
 
   useEffect(() => {
-    const nextStats: Record<string, { average: number; count: number }> = {}
+    const saved = localStorage.getItem(`reviews-${id}`)
+    if (saved) {
+      setReviews(JSON.parse(saved))
+    }
+  }, [id])
 
-    problems.forEach((p) => {
-      const saved = localStorage.getItem(`reviews-${p.id}`)
-      const allReviews = saved ? JSON.parse(saved) : []
-      const reviews = allReviews.filter((r: { problemId: string }) => r.problemId === p.id)
+  function handleSubmit() {
+    const nextReview: Review = {
+      problemId: id,
+      rating,
+      comment,
+      createdAt: new Date().toISOString(),
+    }
 
-      const average =
-        reviews.length === 0
-          ? 0
-          : reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
+    const nextReviews = [nextReview, ...reviews]
+    setReviews(nextReviews)
+    localStorage.setItem(`reviews-${id}`, JSON.stringify(nextReviews))
 
-      nextStats[p.id] = { average, count: reviews.length }
-    })
+    setRating(5)
+    setComment("")
+  }
 
-    setStats(nextStats)
-  }, [problems])
+  const average =
+    reviews.length === 0
+      ? 0
+      : reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+
+  if (loading) {
+    return (
+      <main className="p-10">
+        <Link href="/" className="text-blue-600 underline">
+          ← 問題一覧に戻る
+        </Link>
+        <p className="mt-6">読み込み中...</p>
+      </main>
+    )
+  }
+
+  if (!problem) {
+    return (
+      <main className="p-10">
+        <Link href="/" className="text-blue-600 underline">
+          ← 問題一覧に戻る
+        </Link>
+
+        <h1 className="text-2xl font-bold mt-6">問題が見つかりません</h1>
+        <p className="text-gray-600 mt-2">
+          指定された問題は存在しないか、削除された可能性があります。
+        </p>
+      </main>
+    )
+  }
 
   return (
     <main className="p-10">
-      <h1 className="text-3xl font-bold mb-6">学問ログ（仮）</h1>
+      <Link href="/" className="text-blue-600 underline">
+        ← 問題一覧に戻る
+      </Link>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setSortMode("default")}
-          className={`px-4 py-2 rounded border ${sortMode === "default" ? "bg-black text-white" : "bg-white"}`}
+      <h1 className="text-3xl font-bold mt-6">{problem.title}</h1>
+
+      {problem.content && (
+        <div className="border rounded p-4 mt-4 whitespace-pre-wrap">
+          {problem.content}
+        </div>
+      )}
+
+      <section className="mt-8">
+        <h2 className="text-xl font-bold">評価</h2>
+
+        <div className="flex items-center gap-2 mt-2">
+          <StarRating value={Math.round(average)} />
+          <span className="text-gray-600">
+            {average.toFixed(1)}（{reviews.length}件）
+          </span>
+        </div>
+      </section>
+
+      <section className="mt-8 border rounded p-4">
+        <h2 className="text-xl font-bold mb-4">レビューを書く</h2>
+
+        <label className="block mb-2">評価</label>
+        <select
+          value={rating}
+          onChange={(e) => setRating(Number(e.target.value))}
+          className="border rounded px-3 py-2 mb-4"
         >
-          新着順
-        </button>
+          <option value={5}>5</option>
+          <option value={4}>4</option>
+          <option value={3}>3</option>
+          <option value={2}>2</option>
+          <option value={1}>1</option>
+        </select>
+
+        <label className="block mb-2">コメント</label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          className="border rounded w-full p-3 h-28"
+          placeholder="この問題の解法・難易度・良かった点など"
+        />
 
         <button
-          onClick={() => setSortMode("popular")}
-          className={`px-4 py-2 rounded border ${sortMode === "popular" ? "bg-black text-white" : "bg-white"}`}
+          onClick={handleSubmit}
+          className="mt-4 bg-black text-white px-4 py-2 rounded"
         >
-          人気順
+          投稿する
         </button>
-      </div>
+      </section>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="問題名・タグで検索"
-        className="border rounded px-4 py-2 mb-6 w-full"
-      />
+      <section className="mt-8">
+        <h2 className="text-xl font-bold mb-4">コメント一覧</h2>
 
-      <div className="grid gap-4">
-        {[...problems]
-          .filter((p) => {
-            const keyword = query.trim().toLowerCase()
-            if (!keyword) return true
-
-            return (
-              p.title.toLowerCase().includes(keyword) ||
-              (p.content ?? "").toLowerCase().includes(keyword) ||
-              p.tags.some((tag) => tag.toLowerCase().includes(keyword))
-            )
-          })
-          .sort((a, b) => {
-            if (sortMode === "default") return 0
-
-            const aAvg = stats[a.id]?.average ?? 0
-            const bAvg = stats[b.id]?.average ?? 0
-            return bAvg - aAvg
-          })
-          .map((p) => {
-            const average = stats[p.id]?.average ?? 0
-            const count = stats[p.id]?.count ?? 0
-            const rounded = Math.floor(average * 10) / 10
-
-            return (
-              <Link key={p.id} href={`/problems/${p.id}`}>
-                <div className="border p-4 rounded hover:bg-gray-100 cursor-pointer">
-                  <h2 className="text-xl font-semibold">{p.title}</h2>
-
-                  <div className="flex items-center gap-2 mt-1">
-                    <StarRating value={average} />
-                    <span className="text-sm text-gray-500">
-                      {rounded.toFixed(1)}（{count}件）
-                    </span>
-                  </div>
-
-                  {p.content && (
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                      {p.content}
-                    </p>
-                  )}
-
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {p.tags.map((tag) => (
-                      <span key={tag} className="text-sm text-gray-500">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
+        {reviews.length === 0 ? (
+          <p className="text-gray-500">まだコメントはありません。</p>
+        ) : (
+          <div className="grid gap-4">
+            {reviews.map((review, index) => (
+              <div key={index} className="border rounded p-4">
+                <div className="flex items-center gap-2">
+                  <StarRating value={review.rating} />
+                  <span className="text-sm text-gray-500">
+                    {new Date(review.createdAt).toLocaleString()}
+                  </span>
                 </div>
-              </Link>
-            )
-          })}
-      </div>
+
+                <p className="mt-2 whitespace-pre-wrap">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   )
 }

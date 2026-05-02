@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
+
 type Problem = {
   id: string
   title: string
@@ -101,7 +102,9 @@ export default function Home() {
   return (
     <main className="p-10">
       <h1 className="text-3xl font-bold mb-6">学問ログ（仮）</h1>
-
+      <Link href="/new" className="inline-block mb-4 bg-black text-white px-4 py-2 rounded">
+      問題を投稿する
+      </Link>
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setSortMode("default")}

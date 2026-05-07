@@ -132,64 +132,82 @@ useEffect(() => {
   }
 }, [])
 
-  /* ---------------------------------------------------------
-    DB取得：Supabaseから問題一覧とタグを取得
-  --------------------------------------------------------- */
-  useEffect(() => {
-    async function fetchProblems() {
-      const { data, error } = await supabase
-        .from("problems")
-        .select(`
-          id,
-          title,
-          content,
-          created_at,
-          problem_tags (
-            tags ( name )
-          )
-        `)
-        .order("created_at", { ascending: false })
+/* ---------------------------------------------------------
+  DB取得：Supabaseから問題一覧・タグ・レビュー評価を取得
+  ※ 一覧に戻った時にも最新レビュー件数を反映する
+--------------------------------------------------------- */
+useEffect(() => {
+  async function fetchProblems() {
+    const { data, error } = await supabase
+      .from("problems")
+      .select(`
+        id,
+        title,
+        content,
+        created_at,
+        problem_tags (
+          tags ( name )
+        ),
+        reviews (
+          rating
+        )
+      `)
+      .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Supabase取得エラー:", error.message)
-        return
-      }
-
-      setProblems(
-        (data ?? []).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          content: p.content,
-          created_at: p.created_at,
-          tags: (p.problem_tags ?? []).map((pt: any) => pt.tags.name),
-        }))
-      )
+    if (error) {
+      console.error("Supabase取得エラー:", error.message)
+      return
     }
 
-    fetchProblems()
-  }, [])
+    const nextProblems: Problem[] = (data ?? []).map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      created_at: p.created_at,
+      tags: (p.problem_tags ?? []).map((pt: any) => pt.tags.name),
+    }))
 
-  /* ---------------------------------------------------------
-    レビュー集計：localStorageのレビューから平均評価と件数を計算
-  --------------------------------------------------------- */
-  useEffect(() => {
     const nextStats: Record<string, { average: number; count: number }> = {}
 
-    problems.forEach((p) => {
-      const saved = localStorage.getItem(`reviews-${p.id}`)
-      const allReviews = saved ? JSON.parse(saved) : []
-      const reviews = allReviews.filter((r: { problemId: string }) => r.problemId === p.id)
+    ;(data ?? []).forEach((p: any) => {
+      const reviews = p.reviews ?? []
+      const count = reviews.length
 
       const average =
-        reviews.length === 0
+        count === 0
           ? 0
-          : reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
+          : reviews.reduce(
+              (sum: number, r: { rating: number }) => sum + r.rating,
+              0
+            ) / count
 
-      nextStats[p.id] = { average, count: reviews.length }
+      nextStats[p.id] = { average, count }
     })
 
+    setProblems(nextProblems)
     setStats(nextStats)
-  }, [problems])
+  }
+
+  fetchProblems()
+
+  const handleFocus = () => {
+    fetchProblems()
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      fetchProblems()
+    }
+  }
+
+  window.addEventListener("focus", handleFocus)
+  document.addEventListener("visibilitychange", handleVisibilityChange)
+
+  return () => {
+    window.removeEventListener("focus", handleFocus)
+    document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }
+}, [])
 
   return (
     <main className="p-10">
@@ -198,57 +216,57 @@ useEffect(() => {
       ===================================================== */}
       <h1 className="text-3xl font-bold mb-6">学問ログ（仮）</h1>
 
-  {/* =====================================================
-    ログイン状態パネル：メール・ユーザー名・プロフィール設定・ログアウト
-  ===================================================== */}
-  <div className="mb-6 text-sm text-gray-700">
-    {userEmail ? (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-transparent py-2">
-        <span className="font-medium text-gray-700">ログイン中</span>
+    {/* =====================================================
+      ログイン状態パネル：メール・ユーザー名・プロフィール設定・ログアウト
+    ===================================================== */}
+    <div className="mb-6 text-sm text-gray-700">
+      {userEmail ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-transparent py-2">
+          <span className="font-medium text-gray-700">ログイン中</span>
 
-        <span className="text-gray-400">--</span>
+          <span className="text-gray-400">--</span>
 
-        <span className="rounded-md bg-white px-3 py-1 font-medium text-gray-900">
-          {userEmail} / {userName ?? "ユーザー名未設定"}
-        </span>
+          <span className="rounded-md bg-white px-3 py-1 font-medium text-gray-900">
+            {userEmail} / {userName ?? "ユーザー名未設定"}
+          </span>
 
-        <span className="text-gray-400">--</span>
+          <span className="text-gray-400">--</span>
 
-        <Link
-          href="/profile"
-          className="rounded-md bg-white px-3 py-1 text-blue-600 hover:bg-blue-50"
-        >
-          プロフィール設定
-        </Link>
+          <Link
+            href="/profile"
+            className="rounded-md bg-white px-3 py-1 text-blue-600 hover:bg-blue-50"
+          >
+            プロフィール設定
+          </Link>
 
-        <span className="text-gray-400">--</span>
+          <span className="text-gray-400">--</span>
 
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut()
-            setUserEmail(null)
-            setUserName(null)
-          }}
-          className="rounded-md bg-white px-3 py-1 text-red-600 hover:bg-red-50"
-        >
-          ログアウト
-        </button>
-      </div>
-    ) : (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-transparent py-2">
-        <span className="text-gray-600">ログインしていません</span>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut()
+              setUserEmail(null)
+              setUserName(null)
+            }}
+            className="rounded-md bg-white px-3 py-1 text-red-600 hover:bg-red-50"
+          >
+            ログアウト
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-transparent py-2">
+          <span className="text-gray-600">ログインしていません</span>
 
-        <span className="text-gray-400">--</span>
+          <span className="text-gray-400">--</span>
 
-        <Link
-          href="/login"
-          className="rounded-md bg-black px-4 py-2 text-white hover:bg-gray-800"
-        >
-          ログイン / 新規登録
-        </Link>
-      </div>
-    )}
-  </div>
+          <Link
+            href="/login"
+            className="rounded-md bg-black px-4 py-2 text-white hover:bg-gray-800"
+          >
+            ログイン / 新規登録
+          </Link>
+        </div>
+      )}
+    </div>
 
       {/* =====================================================
         投稿ボタン：問題投稿ページへ移動

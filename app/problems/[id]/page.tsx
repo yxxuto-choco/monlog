@@ -2,8 +2,15 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+
+/* =========================================================
+  権限設定：サイトオーナー
+  ※ MVPではメールアドレスで判定。
+  ※ RLS導入時にDB側でも同じ条件を設定する。
+========================================================= */
+const OWNER_EMAIL = "yxxuto@gmail.com"
 
 /* =========================================================
   型定義：問題データの形
@@ -19,7 +26,7 @@ type Problem = {
 
 /* =========================================================
   型定義：レビュー情報の形
-  ※ 現時点ではSupabaseのreviewsテーブル保存
+  ※ Supabaseのreviewsテーブル保存
 ========================================================= */
 type Review = {
   id: string
@@ -114,6 +121,7 @@ export default function ProblemDetail() {
   /* ---------------------------------------------------------
     URLパラメータ取得：/problems/[id] の id を取得
   --------------------------------------------------------- */
+  const router = useRouter()
   const params = useParams()
   const id = String(params.id)
 
@@ -125,8 +133,10 @@ export default function ProblemDetail() {
 
   /* ---------------------------------------------------------
     state：ログイン中ユーザー
+    ※ レビュー投稿・レビュー削除・問題削除権限に使う
   --------------------------------------------------------- */
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
 
   /* ---------------------------------------------------------
     state：レビュー投稿フォーム・レビュー一覧
@@ -139,18 +149,20 @@ export default function ProblemDetail() {
   const [isReviewSubmitting, setIsReviewSubmitting] = useState(false)
 
   /* ---------------------------------------------------------
-    ログインユーザー取得：レビュー投稿時のuser_idに使う
+    ログインユーザー取得：レビュー投稿・削除権限判定に使う
   --------------------------------------------------------- */
   useEffect(() => {
     async function fetchCurrentUser() {
       const { data } = await supabase.auth.getUser()
       setCurrentUserId(data.user?.id ?? null)
+      setCurrentUserEmail(data.user?.email ?? null)
     }
 
     fetchCurrentUser()
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUserId(session?.user.id ?? null)
+      setCurrentUserEmail(session?.user.email ?? null)
     })
 
     return () => {
@@ -270,6 +282,14 @@ export default function ProblemDetail() {
   const roundedAverage = Math.floor(averageRating * 10) / 10
 
   /* ---------------------------------------------------------
+    問題削除権限：投稿者本人 or サイトオーナー
+  --------------------------------------------------------- */
+  const canDeleteProblem =
+    !!problem &&
+    !!currentUserId &&
+    (problem.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
+
+  /* ---------------------------------------------------------
     レビュー投稿：reviewsテーブルへinsert
   --------------------------------------------------------- */
   async function handleSubmitReview() {
@@ -363,6 +383,67 @@ export default function ProblemDetail() {
     setReviewMessage("レビューを削除しました。")
   }
 
+  /* ---------------------------------------------------------
+    問題削除：投稿者本人 or オーナーだけ削除可能
+    ※ 現時点では画面上の制御。RLS導入後はDB側でも同条件を設定する。
+  --------------------------------------------------------- */
+  async function handleDeleteProblem() {
+    if (!problem) return
+
+    const canDelete =
+      !!currentUserId &&
+      (problem.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
+
+    if (!canDelete) {
+      alert("この問題を削除する権限がありません。")
+      return
+    }
+
+    const confirmed = window.confirm(
+      "この問題を削除しますか？関連するタグ紐付け・レビューも削除されます。"
+    )
+
+    if (!confirmed) return
+
+    /* 関連レビュー削除 */
+    const { error: reviewDeleteError } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (reviewDeleteError) {
+      console.warn("レビュー削除エラー:", reviewDeleteError.message)
+      alert("レビューの削除に失敗しました。")
+      return
+    }
+
+    /* タグ紐付け削除 */
+    const { error: tagRelationError } = await supabase
+      .from("problem_tags")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (tagRelationError) {
+      console.warn("タグ紐付け削除エラー:", tagRelationError.message)
+      alert("タグ紐付けの削除に失敗しました。")
+      return
+    }
+
+    /* 問題本体削除 */
+    const { error: problemDeleteError } = await supabase
+      .from("problems")
+      .delete()
+      .eq("id", problem.id)
+
+    if (problemDeleteError) {
+      console.warn("問題削除エラー:", problemDeleteError.message)
+      alert("問題の削除に失敗しました。")
+      return
+    }
+
+    router.push("/")
+  }
+
   /* =========================================================
     ローディング表示：DB取得中
   ========================================================= */
@@ -417,7 +498,7 @@ export default function ProblemDetail() {
       </nav>
 
       {/* =====================================================
-        問題ヘッダー：タイトル・投稿者・タグ・平均評価・本文
+        問題ヘッダー：タイトル・投稿者・タグ・平均評価・本文・削除
       ===================================================== */}
       <section className="mb-10">
         {/* 問題タイトル */}
@@ -452,6 +533,18 @@ export default function ProblemDetail() {
 
         {/* 問題本文 */}
         <p className="text-lg">{problem.content}</p>
+
+        {/* 問題削除ボタン：投稿者本人またはオーナーだけ表示 */}
+        {canDeleteProblem && (
+          <div className="mt-6">
+            <button
+              onClick={handleDeleteProblem}
+              className="rounded border border-red-500 px-4 py-2 text-red-600 hover:bg-red-50"
+            >
+              この問題を削除する
+            </button>
+          </div>
+        )}
       </section>
 
       {/* =====================================================

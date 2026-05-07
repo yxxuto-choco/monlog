@@ -110,7 +110,7 @@ useEffect(() => {
       .from("profiles")
       .select("username")
       .eq("id", user.id)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error("プロフィール取得エラー:", error.message)

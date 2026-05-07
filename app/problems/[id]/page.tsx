@@ -235,7 +235,7 @@ export default function ProblemDetail() {
           )
         `)
         .eq("id", id)
-        .single()
+        .maybeSingle()
 
       if (error || !data) {
         console.warn("問題取得エラー:", error?.message)
@@ -251,7 +251,7 @@ export default function ProblemDetail() {
           .from("profiles")
           .select("username")
           .eq("id", data.user_id)
-          .single()
+          .maybeSingle()
 
         if (profileError) {
           console.warn("投稿者プロフィール取得エラー:", profileError.message)
@@ -485,7 +485,7 @@ export default function ProblemDetail() {
           username
         )
       `)
-      .single()
+      .maybeSingle()
 
     setIsReviewSubmitting(false)
 

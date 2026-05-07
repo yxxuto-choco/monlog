@@ -19,14 +19,16 @@ type Problem = {
 
 /* =========================================================
   型定義：レビュー情報の形
-  ※ 現時点ではlocalStorage保存
+  ※ 現時点ではSupabaseのreviewsテーブル保存
 ========================================================= */
 type Review = {
-  problemId: string
+  id: string
+  problem_id: string
+  user_id: string | null
+  username: string | null
   rating: number
-  user: string
-  date: string
   comment: string
+  created_at: string
 }
 
 /* =========================================================
@@ -94,6 +96,18 @@ function StarRating({ value }: { value: number }) {
 }
 
 /* =========================================================
+  補助関数：Supabaseから返るprofiles情報からusernameを安全に取り出す
+  ※ profiles が配列として返る場合・単体オブジェクトとして返る場合の両方に対応
+========================================================= */
+function getProfileUsername(profiles: any): string | null {
+  if (Array.isArray(profiles)) {
+    return profiles[0]?.username ?? null
+  }
+
+  return profiles?.username ?? null
+}
+
+/* =========================================================
   詳細ページ：問題本文・タグ・投稿者・レビューを表示
 ========================================================= */
 export default function ProblemDetail() {
@@ -110,17 +124,47 @@ export default function ProblemDetail() {
   const [loading, setLoading] = useState(true)
 
   /* ---------------------------------------------------------
+    state：ログイン中ユーザー
+  --------------------------------------------------------- */
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  /* ---------------------------------------------------------
     state：レビュー投稿フォーム・レビュー一覧
   --------------------------------------------------------- */
   const [reviews, setReviews] = useState<Review[]>([])
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
+  const [reviewMessage, setReviewMessage] = useState("")
+  const [reviewErrorMessage, setReviewErrorMessage] = useState("")
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false)
+
+  /* ---------------------------------------------------------
+    ログインユーザー取得：レビュー投稿時のuser_idに使う
+  --------------------------------------------------------- */
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const { data } = await supabase.auth.getUser()
+      setCurrentUserId(data.user?.id ?? null)
+    }
+
+    fetchCurrentUser()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user.id ?? null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
 
   /* ---------------------------------------------------------
     DB取得：問題本体・タグ・投稿者プロフィールを取得
   --------------------------------------------------------- */
   useEffect(() => {
     async function fetchProblem() {
+      setLoading(true)
+
       const { data, error } = await supabase
         .from("problems")
         .select(`
@@ -135,8 +179,9 @@ export default function ProblemDetail() {
         .eq("id", id)
         .single()
 
-      if (error) {
-        console.error("問題取得エラー:", error.message)
+      if (error || !data) {
+        console.warn("問題取得エラー:", error?.message)
+        setProblem(null)
         setLoading(false)
         return
       }
@@ -151,7 +196,7 @@ export default function ProblemDetail() {
           .single()
 
         if (profileError) {
-          console.error("投稿者プロフィール取得エラー:", profileError.message)
+          console.warn("投稿者プロフィール取得エラー:", profileError.message)
         }
 
         username = profile?.username ?? null
@@ -173,29 +218,150 @@ export default function ProblemDetail() {
   }, [id])
 
   /* ---------------------------------------------------------
-    レビュー取得：localStorageからこの問題のレビューを取得
+    DB取得：reviewsテーブルからこの問題のレビュー一覧を取得
   --------------------------------------------------------- */
   useEffect(() => {
-    const saved = localStorage.getItem(`reviews-${id}`)
-    if (saved) {
-      setReviews(JSON.parse(saved))
-    } else {
-      setReviews([])
+    async function fetchReviews() {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select(`
+          id,
+          problem_id,
+          user_id,
+          rating,
+          comment,
+          created_at,
+          profiles (
+            username
+          )
+        `)
+        .eq("problem_id", id)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.warn("レビュー取得エラー:", error.message)
+        return
+      }
+
+      setReviews(
+        (data ?? []).map((review: any) => ({
+          id: review.id,
+          problem_id: review.problem_id,
+          user_id: review.user_id,
+          rating: review.rating,
+          comment: review.comment,
+          created_at: review.created_at,
+          username: getProfileUsername(review.profiles),
+        }))
+      )
     }
+
+    fetchReviews()
   }, [id])
 
   /* ---------------------------------------------------------
-    レビュー集計：この問題のレビューだけに絞り、平均評価を計算
+    レビュー集計：DBから取得したレビューで平均評価を計算
   --------------------------------------------------------- */
-  const problemReviews = reviews.filter((r) => r.problemId === id)
-
   const averageRating =
-    problemReviews.length === 0
+    reviews.length === 0
       ? 0
-      : problemReviews.reduce((sum, r) => sum + r.rating, 0) /
-        problemReviews.length
+      : reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
 
   const roundedAverage = Math.floor(averageRating * 10) / 10
+
+  /* ---------------------------------------------------------
+    レビュー投稿：reviewsテーブルへinsert
+  --------------------------------------------------------- */
+  async function handleSubmitReview() {
+    setReviewMessage("")
+    setReviewErrorMessage("")
+
+    if (!currentUserId) {
+      setReviewErrorMessage("レビューを書くにはログインしてください。")
+      return
+    }
+
+    if (!comment.trim()) {
+      setReviewErrorMessage("コメントを入力してください。")
+      return
+    }
+
+    setIsReviewSubmitting(true)
+
+    const { data: insertedReview, error } = await supabase
+      .from("reviews")
+      .insert({
+        problem_id: id,
+        user_id: currentUserId,
+        rating,
+        comment: comment.trim(),
+      })
+      .select(`
+        id,
+        problem_id,
+        user_id,
+        rating,
+        comment,
+        created_at,
+        profiles (
+          username
+        )
+      `)
+      .single()
+
+    setIsReviewSubmitting(false)
+
+    if (error || !insertedReview) {
+      console.warn("レビュー投稿エラー:", error?.message)
+      setReviewErrorMessage("レビューの投稿に失敗しました。")
+      return
+    }
+
+    const reviewData: any = insertedReview
+
+    const newReview: Review = {
+      id: reviewData.id,
+      problem_id: reviewData.problem_id,
+      user_id: reviewData.user_id,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      created_at: reviewData.created_at,
+      username: getProfileUsername(reviewData.profiles),
+    }
+
+    setReviews((prev) => [newReview, ...prev])
+    setComment("")
+    setRating(5)
+    setReviewMessage("レビューを投稿しました。")
+  }
+
+  /* ---------------------------------------------------------
+    レビュー削除：自分のレビューだけ削除
+    ※ RLS導入後はDB側でも制御する
+  --------------------------------------------------------- */
+  async function handleDeleteReview(review: Review) {
+    setReviewMessage("")
+    setReviewErrorMessage("")
+
+    if (!currentUserId || review.user_id !== currentUserId) {
+      setReviewErrorMessage("自分のレビューだけ削除できます。")
+      return
+    }
+
+    const { error } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", review.id)
+
+    if (error) {
+      console.warn("レビュー削除エラー:", error.message)
+      setReviewErrorMessage("レビューの削除に失敗しました。")
+      return
+    }
+
+    setReviews((prev) => prev.filter((r) => r.id !== review.id))
+    setReviewMessage("レビューを削除しました。")
+  }
 
   /* =========================================================
     ローディング表示：DB取得中
@@ -280,7 +446,7 @@ export default function ProblemDetail() {
           <span className="font-bold">平均評価：</span>
           <StarRating value={averageRating} />
           <span className="ml-2 text-gray-500">
-            {roundedAverage.toFixed(1)} / 5.0（{problemReviews.length}件）
+            {roundedAverage.toFixed(1)} / 5.0（{reviews.length}件）
           </span>
         </div>
 
@@ -289,45 +455,50 @@ export default function ProblemDetail() {
       </section>
 
       {/* =====================================================
-        レビュー一覧：この問題に投稿されたレビューを表示
+        レビュー一覧：DBのreviewsテーブルから取得して表示
       ===================================================== */}
       <section>
         <h2 className="text-xl font-bold mb-4">レビュー</h2>
 
         <div className="grid gap-4">
-          {problemReviews.map((review, index) => (
-            <div key={index} className="border rounded p-4 relative">
-              {/* レビュー削除ボタン：localStorageから削除 */}
-              <button
-                onClick={() => {
-                  const updated = reviews.filter((_, i) => i !== index)
-                  setReviews(updated)
-                  localStorage.setItem(`reviews-${id}`, JSON.stringify(updated))
-                }}
-                className="absolute top-2 right-2 text-sm text-red-500 hover:underline"
-              >
-                削除
-              </button>
-
-              {/* レビュー星評価 */}
-              <div className="mb-2">
-                <StarRating value={review.rating} />
-              </div>
-
-              {/* レビュー本文 */}
-              <p className="mb-2">{review.comment}</p>
-
-              {/* レビュー投稿者・投稿日 */}
-              <p className="text-sm text-gray-500">
-                {review.user}・{review.date}
-              </p>
+          {reviews.length === 0 ? (
+            <div className="border rounded p-4 text-sm text-gray-500">
+              まだレビューはありません。
             </div>
-          ))}
+          ) : (
+            reviews.map((review) => (
+              <div key={review.id} className="border rounded p-4 relative">
+                {/* レビュー削除ボタン：自分のレビューだけ表示 */}
+                {currentUserId === review.user_id && (
+                  <button
+                    onClick={() => handleDeleteReview(review)}
+                    className="absolute top-2 right-2 text-sm text-red-500 hover:underline"
+                  >
+                    削除
+                  </button>
+                )}
+
+                {/* レビュー星評価 */}
+                <div className="mb-2">
+                  <StarRating value={review.rating} />
+                </div>
+
+                {/* レビュー本文 */}
+                <p className="mb-2">{review.comment}</p>
+
+                {/* レビュー投稿者・投稿日 */}
+                <p className="text-sm text-gray-500">
+                  {review.username ?? "未設定ユーザー"}・
+                  {new Date(review.created_at).toISOString().slice(0, 10)}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
       {/* =====================================================
-        レビュー投稿フォーム：評価とコメントを投稿
+        レビュー投稿フォーム：評価とコメントをDBに投稿
       ===================================================== */}
       <section className="mt-10">
         <h2 className="text-xl font-bold mb-4">レビューを書く</h2>
@@ -361,28 +532,22 @@ export default function ProblemDetail() {
             />
           </div>
 
+          {/* 投稿成功・エラーメッセージ */}
+          {reviewErrorMessage && (
+            <p className="mb-4 text-sm text-red-500">{reviewErrorMessage}</p>
+          )}
+
+          {reviewMessage && (
+            <p className="mb-4 text-sm text-green-600">{reviewMessage}</p>
+          )}
+
           {/* 投稿ボタン */}
           <button
-            onClick={() => {
-              if (!comment.trim()) return
-
-              const newReview: Review = {
-                problemId: id,
-                rating,
-                user: "あなた",
-                date: new Date().toISOString().slice(0, 10),
-                comment,
-              }
-
-              const updated = [newReview, ...reviews]
-              setReviews(updated)
-              localStorage.setItem(`reviews-${id}`, JSON.stringify(updated))
-              setComment("")
-              setRating(5)
-            }}
-            className="bg-black text-white px-4 py-2 rounded"
+            onClick={handleSubmitReview}
+            disabled={isReviewSubmitting}
+            className="bg-black text-white px-4 py-2 rounded disabled:bg-gray-400"
           >
-            投稿する
+            {isReviewSubmitting ? "投稿中..." : "投稿する"}
           </button>
         </div>
       </section>

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
 
@@ -42,9 +42,32 @@ export default function Home() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [stats, setStats] = useState<Record<string, { average: number; count: number }>>({})
   const [sortMode, setSortMode] = useState<"default" | "popular">("default")
+  const router = useRouter()
   const searchParams = useSearchParams()
   const initialQuery = searchParams.get("q") ?? ""
   const [query, setQuery] = useState(initialQuery)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  
+  useEffect(() => {
+    setQuery(searchParams.get("q") ?? "")
+  }, [searchParams])
+
+  useEffect(() => {
+    async function fetchUser() {
+      const { data } = await supabase.auth.getUser()
+      setUserEmail(data.user?.email ?? null)
+    }
+
+    fetchUser()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? null)
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     async function fetchProblems() {
@@ -102,6 +125,28 @@ export default function Home() {
   return (
     <main className="p-10">
       <h1 className="text-3xl font-bold mb-6">学問ログ（仮）</h1>
+
+      <div className="mb-4 text-sm text-gray-600">
+        {userEmail ? (
+          <div className="flex items-center gap-3">
+            <span>ログイン中：{userEmail}</span>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut()
+                setUserEmail(null)
+              }}
+              className="text-blue-500 hover:underline"
+            >
+              ログアウト
+            </button>
+          </div>
+        ) : (
+          <Link href="/login" className="text-blue-500 hover:underline">
+            ログイン / 新規登録
+          </Link>
+        )}
+      </div>
+
       <Link href="/new" className="inline-block mb-4 bg-black text-white px-4 py-2 rounded">
       問題を投稿する
       </Link>
@@ -125,8 +170,23 @@ export default function Home() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="問題名・タグで検索"
-        className="border rounded px-4 py-2 mb-6 w-full"
+        className="border rounded px-4 py-2 mb-3 w-full"
       />
+
+      {query.trim() && (
+        <div className="mb-4 text-sm text-gray-600">
+          「{query}」で絞り込み中
+          <button
+            onClick={() => {
+              setQuery("")
+              router.push("/")
+            }}
+            className="ml-3 text-blue-500 hover:underline"
+          >
+            解除
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {[...problems]
@@ -167,11 +227,22 @@ export default function Home() {
                   </div>
 
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {p.tags.map((tag) => (
-                      <span key={tag} className="text-sm text-gray-500">
-                        #{tag}
-                      </span>
-                    ))}
+                  {p.tags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setQuery(tag)
+                        router.push(`/?q=${encodeURIComponent(tag)}`)
+                      }}
+                      className={`text-sm hover:underline ${
+                        query === tag ? "text-blue-600 font-bold" : "text-gray-500"
+                      }`}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
                   </div>
                 </div>
               </Link>

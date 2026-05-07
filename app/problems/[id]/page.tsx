@@ -5,13 +5,22 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
+/* =========================================================
+  型定義：問題データの形
+========================================================= */
 type Problem = {
   id: string
   title: string
   content: string | null
   tags: string[]
+  user_id: string | null
+  username: string | null
 }
 
+/* =========================================================
+  型定義：レビュー情報の形
+  ※ 現時点ではlocalStorage保存
+========================================================= */
 type Review = {
   problemId: string
   rating: number
@@ -20,6 +29,9 @@ type Review = {
   comment: string
 }
 
+/* =========================================================
+  星評価コンポーネント：平均評価や各レビュー評価を星で表示
+========================================================= */
 function StarRating({ value }: { value: number }) {
   return (
     <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
@@ -39,7 +51,12 @@ function StarRating({ value }: { value: number }) {
               height: "20px",
             }}
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" style={{ color: "#d1d5db" }}>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              style={{ color: "#d1d5db" }}
+            >
               <path
                 fill="currentColor"
                 d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
@@ -57,7 +74,12 @@ function StarRating({ value }: { value: number }) {
                 display: "inline-block",
               }}
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" style={{ color: "#f59e0b" }}>
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                style={{ color: "#f59e0b" }}
+              >
                 <path
                   fill="currentColor"
                   d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
@@ -71,17 +93,32 @@ function StarRating({ value }: { value: number }) {
   )
 }
 
+/* =========================================================
+  詳細ページ：問題本文・タグ・投稿者・レビューを表示
+========================================================= */
 export default function ProblemDetail() {
+  /* ---------------------------------------------------------
+    URLパラメータ取得：/problems/[id] の id を取得
+  --------------------------------------------------------- */
   const params = useParams()
   const id = String(params.id)
 
+  /* ---------------------------------------------------------
+    state：問題データ・読み込み状態
+  --------------------------------------------------------- */
   const [problem, setProblem] = useState<Problem | null>(null)
   const [loading, setLoading] = useState(true)
 
+  /* ---------------------------------------------------------
+    state：レビュー投稿フォーム・レビュー一覧
+  --------------------------------------------------------- */
   const [reviews, setReviews] = useState<Review[]>([])
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState("")
 
+  /* ---------------------------------------------------------
+    DB取得：問題本体・タグ・投稿者プロフィールを取得
+  --------------------------------------------------------- */
   useEffect(() => {
     async function fetchProblem() {
       const { data, error } = await supabase
@@ -90,6 +127,7 @@ export default function ProblemDetail() {
           id,
           title,
           content,
+          user_id,
           problem_tags (
             tags ( name )
           )
@@ -103,10 +141,28 @@ export default function ProblemDetail() {
         return
       }
 
+      let username: string | null = null
+
+      if (data.user_id) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", data.user_id)
+          .single()
+
+        if (profileError) {
+          console.error("投稿者プロフィール取得エラー:", profileError.message)
+        }
+
+        username = profile?.username ?? null
+      }
+
       setProblem({
         id: data.id,
         title: data.title,
         content: data.content,
+        user_id: data.user_id,
+        username,
         tags: (data.problem_tags ?? []).map((pt: any) => pt.tags.name),
       })
 
@@ -116,6 +172,9 @@ export default function ProblemDetail() {
     fetchProblem()
   }, [id])
 
+  /* ---------------------------------------------------------
+    レビュー取得：localStorageからこの問題のレビューを取得
+  --------------------------------------------------------- */
   useEffect(() => {
     const saved = localStorage.getItem(`reviews-${id}`)
     if (saved) {
@@ -125,6 +184,9 @@ export default function ProblemDetail() {
     }
   }, [id])
 
+  /* ---------------------------------------------------------
+    レビュー集計：この問題のレビューだけに絞り、平均評価を計算
+  --------------------------------------------------------- */
   const problemReviews = reviews.filter((r) => r.problemId === id)
 
   const averageRating =
@@ -135,9 +197,13 @@ export default function ProblemDetail() {
 
   const roundedAverage = Math.floor(averageRating * 10) / 10
 
+  /* =========================================================
+    ローディング表示：DB取得中
+  ========================================================= */
   if (loading) {
     return (
       <main className="p-10">
+        {/* パンくず：読み込み中 */}
         <nav className="mb-6 text-sm text-gray-500">
           <Link href="/" className="hover:underline">
             学問ログ（仮）
@@ -151,9 +217,13 @@ export default function ProblemDetail() {
     )
   }
 
+  /* =========================================================
+    エラー表示：問題が見つからない場合
+  ========================================================= */
   if (!problem) {
     return (
       <main className="p-10">
+        {/* パンくず：問題が見つからない */}
         <nav className="mb-6 text-sm text-gray-500">
           <Link href="/" className="hover:underline">
             学問ログ（仮）
@@ -169,6 +239,9 @@ export default function ProblemDetail() {
 
   return (
     <main className="p-10">
+      {/* =====================================================
+        パンくず：トップページ / 現在の問題
+      ===================================================== */}
       <nav className="mb-6 text-sm text-gray-500">
         <Link href="/" className="hover:underline">
           学問ログ（仮）
@@ -177,9 +250,19 @@ export default function ProblemDetail() {
         <span className="text-gray-900">{problem.title}</span>
       </nav>
 
+      {/* =====================================================
+        問題ヘッダー：タイトル・投稿者・タグ・平均評価・本文
+      ===================================================== */}
       <section className="mb-10">
+        {/* 問題タイトル */}
         <h1 className="text-2xl font-bold mb-2">{problem.title}</h1>
 
+        {/* 投稿者表示：profiles.username を表示 */}
+        <p className="text-sm text-gray-500 mb-2">
+          投稿者：{problem.username ?? "未設定ユーザー"}
+        </p>
+
+        {/* タグ一覧：クリックするとトップページでタグ検索 */}
         <div className="flex gap-2 mb-4 flex-wrap">
           {problem.tags.map((tag) => (
             <Link
@@ -192,6 +275,7 @@ export default function ProblemDetail() {
           ))}
         </div>
 
+        {/* 平均評価 */}
         <div className="mb-4 text-sm">
           <span className="font-bold">平均評価：</span>
           <StarRating value={averageRating} />
@@ -200,15 +284,20 @@ export default function ProblemDetail() {
           </span>
         </div>
 
+        {/* 問題本文 */}
         <p className="text-lg">{problem.content}</p>
       </section>
 
+      {/* =====================================================
+        レビュー一覧：この問題に投稿されたレビューを表示
+      ===================================================== */}
       <section>
         <h2 className="text-xl font-bold mb-4">レビュー</h2>
 
         <div className="grid gap-4">
           {problemReviews.map((review, index) => (
             <div key={index} className="border rounded p-4 relative">
+              {/* レビュー削除ボタン：localStorageから削除 */}
               <button
                 onClick={() => {
                   const updated = reviews.filter((_, i) => i !== index)
@@ -220,12 +309,15 @@ export default function ProblemDetail() {
                 削除
               </button>
 
+              {/* レビュー星評価 */}
               <div className="mb-2">
                 <StarRating value={review.rating} />
               </div>
 
+              {/* レビュー本文 */}
               <p className="mb-2">{review.comment}</p>
 
+              {/* レビュー投稿者・投稿日 */}
               <p className="text-sm text-gray-500">
                 {review.user}・{review.date}
               </p>
@@ -234,10 +326,14 @@ export default function ProblemDetail() {
         </div>
       </section>
 
+      {/* =====================================================
+        レビュー投稿フォーム：評価とコメントを投稿
+      ===================================================== */}
       <section className="mt-10">
         <h2 className="text-xl font-bold mb-4">レビューを書く</h2>
 
         <div className="border rounded p-4">
+          {/* 評価選択 */}
           <div className="mb-4">
             <label className="block mb-1">評価</label>
             <select
@@ -253,6 +349,7 @@ export default function ProblemDetail() {
             </select>
           </div>
 
+          {/* コメント入力 */}
           <div className="mb-4">
             <label className="block mb-1">コメント</label>
             <textarea
@@ -264,6 +361,7 @@ export default function ProblemDetail() {
             />
           </div>
 
+          {/* 投稿ボタン */}
           <button
             onClick={() => {
               if (!comment.trim()) return

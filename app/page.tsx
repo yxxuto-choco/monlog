@@ -229,7 +229,14 @@ useEffect(() => {
           <span className="rounded-md bg-white px-3 py-1 font-medium text-gray-900">
             {userEmail} / {userName ?? "ユーザー名未設定"}
           </span>
+          <span className="text-gray-400">--</span>
 
+          <Link
+            href="/my"
+            className="rounded-md bg-white px-3 py-1 text-blue-600 hover:bg-blue-50"
+          >
+            マイページ
+          </Link>
           <span className="text-gray-400">--</span>
 
           <Link

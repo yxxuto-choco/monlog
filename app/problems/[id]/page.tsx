@@ -13,13 +13,21 @@ import { supabase } from "@/lib/supabase"
 const OWNER_EMAIL = "yxxuto@gmail.com"
 
 /* =========================================================
+  型定義：タグ情報の形
+========================================================= */
+type Tag = {
+  id: string
+  name: string
+}
+
+/* =========================================================
   型定義：問題データの形
 ========================================================= */
 type Problem = {
   id: string
   title: string
   content: string | null
-  tags: string[]
+  tags: Tag[]
   user_id: string | null
   username: string | null
 }
@@ -104,7 +112,6 @@ function StarRating({ value }: { value: number }) {
 
 /* =========================================================
   補助関数：Supabaseから返るprofiles情報からusernameを安全に取り出す
-  ※ profiles が配列として返る場合・単体オブジェクトとして返る場合の両方に対応
 ========================================================= */
 function getProfileUsername(profiles: any): string | null {
   if (Array.isArray(profiles)) {
@@ -133,10 +140,27 @@ export default function ProblemDetail() {
 
   /* ---------------------------------------------------------
     state：ログイン中ユーザー
-    ※ レビュー投稿・レビュー削除・問題削除権限に使う
+    ※ レビュー投稿・レビュー削除・問題編集・問題削除権限に使う
   --------------------------------------------------------- */
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+
+  /* ---------------------------------------------------------
+    state：全タグ一覧
+    ※ 問題編集時のタグ選択に使う
+  --------------------------------------------------------- */
+  const [allTags, setAllTags] = useState<Tag[]>([])
+
+  /* ---------------------------------------------------------
+    state：問題編集フォーム
+  --------------------------------------------------------- */
+  const [isEditingProblem, setIsEditingProblem] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editContent, setEditContent] = useState("")
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [editMessage, setEditMessage] = useState("")
+  const [editErrorMessage, setEditErrorMessage] = useState("")
+  const [isSavingProblem, setIsSavingProblem] = useState(false)
 
   /* ---------------------------------------------------------
     state：レビュー投稿フォーム・レビュー一覧
@@ -149,7 +173,7 @@ export default function ProblemDetail() {
   const [isReviewSubmitting, setIsReviewSubmitting] = useState(false)
 
   /* ---------------------------------------------------------
-    ログインユーザー取得：レビュー投稿・削除権限判定に使う
+    ログインユーザー取得：投稿・編集・削除の権限判定に使う
   --------------------------------------------------------- */
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -171,6 +195,27 @@ export default function ProblemDetail() {
   }, [])
 
   /* ---------------------------------------------------------
+    DB取得：編集用に全タグを取得
+  --------------------------------------------------------- */
+  useEffect(() => {
+    async function fetchAllTags() {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("id, name")
+        .order("name", { ascending: true })
+
+      if (error) {
+        console.warn("タグ一覧取得エラー:", error.message)
+        return
+      }
+
+      setAllTags(data ?? [])
+    }
+
+    fetchAllTags()
+  }, [])
+
+  /* ---------------------------------------------------------
     DB取得：問題本体・タグ・投稿者プロフィールを取得
   --------------------------------------------------------- */
   useEffect(() => {
@@ -185,6 +230,7 @@ export default function ProblemDetail() {
           content,
           user_id,
           problem_tags (
+            tag_id,
             tags ( name )
           )
         `)
@@ -220,7 +266,10 @@ export default function ProblemDetail() {
         content: data.content,
         user_id: data.user_id,
         username,
-        tags: (data.problem_tags ?? []).map((pt: any) => pt.tags.name),
+        tags: (data.problem_tags ?? []).map((pt: any) => ({
+          id: pt.tag_id,
+          name: pt.tags?.name ?? "",
+        })),
       })
 
       setLoading(false)
@@ -282,12 +331,121 @@ export default function ProblemDetail() {
   const roundedAverage = Math.floor(averageRating * 10) / 10
 
   /* ---------------------------------------------------------
-    問題削除権限：投稿者本人 or サイトオーナー
+    問題管理権限：投稿者本人 or サイトオーナー
   --------------------------------------------------------- */
-  const canDeleteProblem =
+  const canManageProblem =
     !!problem &&
     !!currentUserId &&
     (problem.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
+
+  /* ---------------------------------------------------------
+    問題編集開始：現在の問題情報を編集フォームへコピー
+  --------------------------------------------------------- */
+  function handleStartEditProblem() {
+    if (!problem) return
+
+    setEditMessage("")
+    setEditErrorMessage("")
+    setEditTitle(problem.title)
+    setEditContent(problem.content ?? "")
+    setSelectedTagIds(problem.tags.map((tag) => tag.id))
+    setIsEditingProblem(true)
+  }
+
+  /* ---------------------------------------------------------
+    タグ選択切り替え：問題編集フォーム用
+  --------------------------------------------------------- */
+  function toggleEditTag(tagId: string) {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    )
+  }
+
+  /* ---------------------------------------------------------
+    問題編集保存：タイトル・本文・タグ紐付けを更新
+    ※ 投稿者本人 or オーナーだけ実行可能
+  --------------------------------------------------------- */
+  async function handleSaveProblemEdit() {
+    setEditMessage("")
+    setEditErrorMessage("")
+
+    if (!problem) return
+
+    if (!canManageProblem) {
+      setEditErrorMessage("この問題を編集する権限がありません。")
+      return
+    }
+
+    if (!editTitle.trim()) {
+      setEditErrorMessage("タイトルを入力してください。")
+      return
+    }
+
+    if (selectedTagIds.length === 0) {
+      setEditErrorMessage("タグを1つ以上選択してください。")
+      return
+    }
+
+    setIsSavingProblem(true)
+
+    const { error: problemUpdateError } = await supabase
+      .from("problems")
+      .update({
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+      .eq("id", problem.id)
+
+    if (problemUpdateError) {
+      console.warn("問題更新エラー:", problemUpdateError.message)
+      setEditErrorMessage("問題の更新に失敗しました。")
+      setIsSavingProblem(false)
+      return
+    }
+
+    const { error: deleteTagError } = await supabase
+      .from("problem_tags")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (deleteTagError) {
+      console.warn("既存タグ紐付け削除エラー:", deleteTagError.message)
+      setEditErrorMessage("既存タグの更新に失敗しました。")
+      setIsSavingProblem(false)
+      return
+    }
+
+    const inserts = selectedTagIds.map((tagId) => ({
+      problem_id: problem.id,
+      tag_id: tagId,
+    }))
+
+    const { error: insertTagError } = await supabase
+      .from("problem_tags")
+      .insert(inserts)
+
+    if (insertTagError) {
+      console.warn("新タグ紐付けエラー:", insertTagError.message)
+      setEditErrorMessage("タグの保存に失敗しました。")
+      setIsSavingProblem(false)
+      return
+    }
+
+    const selectedTags = allTags.filter((tag) => selectedTagIds.includes(tag.id))
+
+    setProblem({
+      ...problem,
+      title: editTitle.trim(),
+      content: editContent.trim(),
+      tags: selectedTags,
+    })
+
+    setIsSavingProblem(false)
+    setIsEditingProblem(false)
+    setEditMessage("問題を更新しました。")
+  }
 
   /* ---------------------------------------------------------
     レビュー投稿：reviewsテーブルへinsert
@@ -356,15 +514,19 @@ export default function ProblemDetail() {
   }
 
   /* ---------------------------------------------------------
-    レビュー削除：自分のレビューだけ削除
+    レビュー削除：レビュー投稿者本人 or オーナーだけ削除可能
     ※ RLS導入後はDB側でも制御する
   --------------------------------------------------------- */
   async function handleDeleteReview(review: Review) {
     setReviewMessage("")
     setReviewErrorMessage("")
 
-    if (!currentUserId || review.user_id !== currentUserId) {
-      setReviewErrorMessage("自分のレビューだけ削除できます。")
+    const canDeleteReview =
+      !!currentUserId &&
+      (review.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
+
+    if (!canDeleteReview) {
+      setReviewErrorMessage("このレビューを削除する権限がありません。")
       return
     }
 
@@ -390,11 +552,7 @@ export default function ProblemDetail() {
   async function handleDeleteProblem() {
     if (!problem) return
 
-    const canDelete =
-      !!currentUserId &&
-      (problem.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
-
-    if (!canDelete) {
+    if (!canManageProblem) {
       alert("この問題を削除する権限がありません。")
       return
     }
@@ -405,7 +563,6 @@ export default function ProblemDetail() {
 
     if (!confirmed) return
 
-    /* 関連レビュー削除 */
     const { error: reviewDeleteError } = await supabase
       .from("reviews")
       .delete()
@@ -417,7 +574,6 @@ export default function ProblemDetail() {
       return
     }
 
-    /* タグ紐付け削除 */
     const { error: tagRelationError } = await supabase
       .from("problem_tags")
       .delete()
@@ -429,7 +585,6 @@ export default function ProblemDetail() {
       return
     }
 
-    /* 問題本体削除 */
     const { error: problemDeleteError } = await supabase
       .from("problems")
       .delete()
@@ -498,51 +653,147 @@ export default function ProblemDetail() {
       </nav>
 
       {/* =====================================================
-        問題ヘッダー：タイトル・投稿者・タグ・平均評価・本文・削除
+        問題ヘッダー：タイトル・投稿者・タグ・平均評価・本文・編集・削除
       ===================================================== */}
       <section className="mb-10">
-        {/* 問題タイトル */}
-        <h1 className="text-2xl font-bold mb-2">{problem.title}</h1>
+        {/* 通常表示：編集モードでない場合 */}
+        {!isEditingProblem && (
+          <>
+            {/* 問題タイトル */}
+            <h1 className="text-2xl font-bold mb-2">{problem.title}</h1>
 
-        {/* 投稿者表示：profiles.username を表示 */}
-        <p className="text-sm text-gray-500 mb-2">
-          投稿者：{problem.username ?? "未設定ユーザー"}
-        </p>
+            {/* 投稿者表示：profiles.username を表示 */}
+            <p className="text-sm text-gray-500 mb-2">
+              投稿者：{problem.username ?? "未設定ユーザー"}
+            </p>
 
-        {/* タグ一覧：クリックするとトップページでタグ検索 */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          {problem.tags.map((tag) => (
-            <Link
-              key={tag}
-              href={`/?q=${encodeURIComponent(tag)}`}
-              className="text-sm text-blue-500 hover:underline"
-            >
-              #{tag}
-            </Link>
-          ))}
-        </div>
+            {/* タグ一覧：クリックするとトップページでタグ検索 */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {problem.tags.map((tag) => (
+                <Link
+                  key={tag.id}
+                  href={`/?q=${encodeURIComponent(tag.name)}`}
+                  className="text-sm text-blue-500 hover:underline"
+                >
+                  #{tag.name}
+                </Link>
+              ))}
+            </div>
 
-        {/* 平均評価 */}
-        <div className="mb-4 text-sm">
-          <span className="font-bold">平均評価：</span>
-          <StarRating value={averageRating} />
-          <span className="ml-2 text-gray-500">
-            {roundedAverage.toFixed(1)} / 5.0（{reviews.length}件）
-          </span>
-        </div>
+            {/* 平均評価 */}
+            <div className="mb-4 text-sm">
+              <span className="font-bold">平均評価：</span>
+              <StarRating value={averageRating} />
+              <span className="ml-2 text-gray-500">
+                {roundedAverage.toFixed(1)} / 5.0（{reviews.length}件）
+              </span>
+            </div>
 
-        {/* 問題本文 */}
-        <p className="text-lg">{problem.content}</p>
+            {/* 問題本文 */}
+            <p className="text-lg">{problem.content}</p>
 
-        {/* 問題削除ボタン：投稿者本人またはオーナーだけ表示 */}
-        {canDeleteProblem && (
-          <div className="mt-6">
-            <button
-              onClick={handleDeleteProblem}
-              className="rounded border border-red-500 px-4 py-2 text-red-600 hover:bg-red-50"
-            >
-              この問題を削除する
-            </button>
+            {/* 編集完了メッセージ */}
+            {editMessage && (
+              <p className="mt-4 text-sm text-green-600">{editMessage}</p>
+            )}
+
+            {/* 問題編集・削除ボタン：投稿者本人またはオーナーだけ表示 */}
+            {canManageProblem && (
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={handleStartEditProblem}
+                  className="rounded border px-4 py-2 text-blue-600 hover:bg-blue-50"
+                >
+                  この問題を編集する
+                </button>
+
+                <button
+                  onClick={handleDeleteProblem}
+                  className="rounded border border-red-500 px-4 py-2 text-red-600 hover:bg-red-50"
+                >
+                  この問題を削除する
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 編集フォーム：投稿者本人またはオーナーだけ利用可能 */}
+        {isEditingProblem && (
+          <div className="border rounded p-4">
+            <h2 className="text-xl font-bold mb-4">問題を編集する</h2>
+
+            {/* タイトル編集 */}
+            <div className="mb-4">
+              <label className="block mb-1">タイトル</label>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="border p-2 rounded w-full"
+              />
+            </div>
+
+            {/* 本文編集 */}
+            <div className="mb-4">
+              <label className="block mb-1">内容</label>
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="border p-2 rounded w-full"
+                rows={5}
+              />
+            </div>
+
+            {/* タグ編集 */}
+            <div className="mb-4">
+              <label className="block mb-2">タグ</label>
+              <div className="flex gap-2 flex-wrap">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleEditTag(tag.id)}
+                    className={`px-3 py-1 rounded border ${
+                      selectedTagIds.includes(tag.id)
+                        ? "bg-black text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    #{tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 編集エラー・成功メッセージ */}
+            {editErrorMessage && (
+              <p className="mb-4 text-sm text-red-500">{editErrorMessage}</p>
+            )}
+
+            {editMessage && (
+              <p className="mb-4 text-sm text-green-600">{editMessage}</p>
+            )}
+
+            {/* 編集保存・キャンセルボタン */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveProblemEdit}
+                disabled={isSavingProblem}
+                className="bg-black text-white px-4 py-2 rounded disabled:bg-gray-400"
+              >
+                {isSavingProblem ? "保存中..." : "保存する"}
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsEditingProblem(false)
+                  setEditErrorMessage("")
+                }}
+                className="border px-4 py-2 rounded hover:bg-gray-100"
+              >
+                キャンセル
+              </button>
+            </div>
           </div>
         )}
       </section>
@@ -559,33 +810,39 @@ export default function ProblemDetail() {
               まだレビューはありません。
             </div>
           ) : (
-            reviews.map((review) => (
-              <div key={review.id} className="border rounded p-4 relative">
-                {/* レビュー削除ボタン：自分のレビューだけ表示 */}
-                {currentUserId === review.user_id && (
-                  <button
-                    onClick={() => handleDeleteReview(review)}
-                    className="absolute top-2 right-2 text-sm text-red-500 hover:underline"
-                  >
-                    削除
-                  </button>
-                )}
+            reviews.map((review) => {
+              const canDeleteReview =
+                !!currentUserId &&
+                (review.user_id === currentUserId || currentUserEmail === OWNER_EMAIL)
 
-                {/* レビュー星評価 */}
-                <div className="mb-2">
-                  <StarRating value={review.rating} />
+              return (
+                <div key={review.id} className="border rounded p-4 relative">
+                  {/* レビュー削除ボタン：レビュー投稿者本人またはオーナーだけ表示 */}
+                  {canDeleteReview && (
+                    <button
+                      onClick={() => handleDeleteReview(review)}
+                      className="absolute top-2 right-2 text-sm text-red-500 hover:underline"
+                    >
+                      削除
+                    </button>
+                  )}
+
+                  {/* レビュー星評価 */}
+                  <div className="mb-2">
+                    <StarRating value={review.rating} />
+                  </div>
+
+                  {/* レビュー本文 */}
+                  <p className="mb-2">{review.comment}</p>
+
+                  {/* レビュー投稿者・投稿日 */}
+                  <p className="text-sm text-gray-500">
+                    {review.username ?? "未設定ユーザー"}・
+                    {new Date(review.created_at).toISOString().slice(0, 10)}
+                  </p>
                 </div>
-
-                {/* レビュー本文 */}
-                <p className="mb-2">{review.comment}</p>
-
-                {/* レビュー投稿者・投稿日 */}
-                <p className="text-sm text-gray-500">
-                  {review.username ?? "未設定ユーザー"}・
-                  {new Date(review.created_at).toISOString().slice(0, 10)}
-                </p>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </section>

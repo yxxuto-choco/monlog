@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Suspence, useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 

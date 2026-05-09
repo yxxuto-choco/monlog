@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { Suspence, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 
@@ -352,6 +352,14 @@ function truncateText(text: string, length: number) {
   トップページ
 ========================================================= */
 export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
+  )
+}
+
+function HomeContent() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [stats, setStats] = useState<Record<string, ReviewStats>>({})
   const [sortMode, setSortMode] = useState<"default" | "popular">("default")

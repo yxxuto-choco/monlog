@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import ProblemMarkdown from "@/components/ProblemMarkdown"
 
 /* =========================================================
   問ログ Design System v1.5
@@ -754,17 +755,9 @@ export default function ProblemDetailPage() {
           </h2>
 
           {problem.content ? (
-            <p
-              style={{
-                margin: "24px 0 0",
-                color: COLORS.text,
-                fontSize: "21px",
-                lineHeight: 1.9,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {problem.content}
-            </p>
+            <div style={{ marginTop: "24px" }}>
+            <ProblemMarkdown content={problem.content} />
+            </div>
           ) : (
             <p
               style={{

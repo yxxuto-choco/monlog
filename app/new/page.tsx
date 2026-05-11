@@ -4,6 +4,7 @@ import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import ProblemMarkdown from "@/components/ProblemMarkdown"
 
 type Tag = {
   id: string
@@ -134,6 +135,25 @@ function FieldLabel({
   )
 }
 
+function InlineCode({ children }: { children: string }) {
+  return (
+    <code
+      style={{
+        display: "inline-block",
+        border: `1px solid ${COLORS.line}`,
+        backgroundColor: COLORS.softYellow,
+        borderRadius: "8px",
+        padding: "2px 7px",
+        color: COLORS.navy,
+        fontSize: "13px",
+        fontWeight: 800,
+      }}
+    >
+      {children}
+    </code>
+  )
+}
+
 export default function NewProblemPage() {
   const router = useRouter()
 
@@ -146,6 +166,7 @@ export default function NewProblemPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
+  const [editorMode, setEditorMode] = useState<"write" | "preview">("write")
 
   /* ---------------------------------------------------------
     既存タグ取得
@@ -448,30 +469,135 @@ export default function NewProblemPage() {
               />
             </div>
 
+            {/* =====================================================
+              問題内容：入力 / プレビュー対応
+            ===================================================== */}
             <div>
               <FieldLabel
                 title="問題内容"
-                description="問題文、条件、図形の説明、補足情報などを入力してください。改行はそのまま反映されます。"
+                description="文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$ で囲んでください。投稿前にプレビューで確認できます。"
               />
 
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="ここに問題文を入力してください。"
-                rows={10}
+              <div
                 style={{
-                  width: "100%",
-                  resize: "vertical",
-                  borderRadius: "18px",
-                  border: `1px solid ${COLORS.lineStrong}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.text,
-                  fontSize: "18px",
-                  lineHeight: 1.8,
-                  padding: "18px 20px",
-                  outline: "none",
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginBottom: "14px",
                 }}
-              />
+              >
+                <button
+                  type="button"
+                  onClick={() => setEditorMode("write")}
+                  style={{
+                    height: "42px",
+                    padding: "0 16px",
+                    borderRadius: "999px",
+                    border: `1px solid ${
+                      editorMode === "write" ? COLORS.teal : COLORS.lineStrong
+                    }`,
+                    backgroundColor: editorMode === "write" ? COLORS.teal : COLORS.surface,
+                    color: editorMode === "write" ? "#FFFFFF" : COLORS.navy,
+                    fontSize: "15px",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  入力
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditorMode("preview")}
+                  style={{
+                    height: "42px",
+                    padding: "0 16px",
+                    borderRadius: "999px",
+                    border: `1px solid ${
+                      editorMode === "preview" ? COLORS.teal : COLORS.lineStrong
+                    }`,
+                    backgroundColor: editorMode === "preview" ? COLORS.teal : COLORS.surface,
+                    color: editorMode === "preview" ? "#FFFFFF" : COLORS.navy,
+                    fontSize: "15px",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  プレビュー
+                </button>
+              </div>
+
+              {editorMode === "write" ? (
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={`ここに問題文を入力してください。
+
+通常の文章はそのまま入力できます。
+
+インライン数式：
+$ \\frac{1}{2} $
+
+表示数式：
+$$
+\\int_0^1 x^2 dx
+$$
+`}
+                  rows={12}
+                  style={{
+                    width: "100%",
+                    resize: "vertical",
+                    borderRadius: "18px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "18px",
+                    lineHeight: 1.8,
+                    padding: "18px 20px",
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    minHeight: "300px",
+                    borderRadius: "18px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    padding: "22px 24px",
+                  }}
+                >
+                  {content.trim() ? (
+                    <ProblemMarkdown content={content} />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.muted,
+                        fontSize: "16px",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      ここにプレビューが表示されます。
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginTop: "12px",
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  lineHeight: 1.8,
+                  fontWeight: 600,
+                }}
+              >
+                <span>インライン数式：</span>{" "}
+                <InlineCode>{String.raw`$ \frac{1}{2} $`}</InlineCode>{" "}
+                <span> / 表示数式：</span>{" "}
+                <InlineCode>{String.raw`$$ \int_0^1 x^2 dx $$`}</InlineCode>
+              </div>
             </div>
           </section>
 

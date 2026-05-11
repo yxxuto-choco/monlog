@@ -1,30 +1,32 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import UserMiniBadge from "@/components/UserMiniBadge"
 
 /* =========================================================
-  問ログ Design System v1.4
+  問ログ Design System
 ========================================================= */
 const COLORS = {
   paper: "#FAF7F0",
   surface: "#FFFFFF",
   navy: "#1E3A5F",
+  teal: "#2A9D8F",
   text: "#1F2937",
   muted: "#64748B",
   slate: "#526984",
-  line: "#D8DDD6",
-  lineStrong: "#C9D2CD",
-  teal: "#2A9D8F",
-  tealSoft: "#E7F2EF",
-  tealPanel: "#E3F1EE",
+  line: "rgba(30, 58, 95, 0.14)",
+  cardLine: "rgba(30, 58, 95, 0.16)",
+  tealLine: "rgba(42, 157, 143, 0.18)",
+  tealPanel: "rgba(42, 157, 143, 0.07)",
   tagBg: "#E2F1EE",
   tagText: "#158B80",
   star: "#F4A261",
   starEmpty: "#D7D3C8",
   danger: "#DC2626",
+  softYellow: "#FBF8EF",
 }
 
 /* =========================================================
@@ -36,12 +38,14 @@ type Problem = {
   content: string | null
   tags: string[]
   created_at: string
+  user_id: string | null
 }
 
 type RepresentativeReview = {
   rating: number
   comment: string
   created_at: string | null
+  user_id: string | null
 }
 
 type ReviewStats = {
@@ -52,8 +56,9 @@ type ReviewStats = {
 
 type ReviewRow = {
   rating: number | string | null
-  comment?: string | null
-  created_at?: string | null
+  comment: string | null
+  created_at: string | null
+  user_id: string | null
 }
 
 type TagRow = {
@@ -69,12 +74,13 @@ type ProblemRow = {
   title: string
   content: string | null
   created_at: string
+  user_id: string | null
   problem_tags: ProblemTagRow[] | null
   reviews: ReviewRow[] | null
 }
 
 /* =========================================================
-  SVGアイコン
+  アイコン
 ========================================================= */
 function UserIcon({ size = 22 }: { size?: number }) {
   return (
@@ -94,18 +100,18 @@ function UserIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function GearIcon({ size = 22 }: { size?: number }) {
+function SettingsIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+        d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"
         stroke="currentColor"
         strokeWidth="2"
       />
       <path
-        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.18A1.65 1.65 0 0 0 8.6 20a1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.18A1.65 1.65 0 0 0 4 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 6.44 3.9l.06.06A1.65 1.65 0 0 0 8.6 4.6a1.65 1.65 0 0 0 1-.6A1.65 1.65 0 0 0 9.93 2.18V2a2 2 0 1 1 4 0v.18A1.65 1.65 0 0 0 15 4a1.65 1.65 0 0 0 1.82.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.6a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33H22a2 2 0 1 1 0 4h-.18A1.65 1.65 0 0 0 19.4 15Z"
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.07V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.07-.4H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6A1.65 1.65 0 0 0 10.4 3V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.4.18.74.48 1 .86.25.38.39.82.4 1.27V12a2 2 0 0 1-2 2h-.09A1.65 1.65 0 0 0 19.4 15Z"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -134,20 +140,15 @@ function LogoutIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function SearchIcon({ size = 26 }: { size?: number }) {
+function SearchIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="m21 21-4.35-4.35"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
       <path
         d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"
         stroke="currentColor"
         strokeWidth="2"
       />
+      <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -166,13 +167,13 @@ function CommentIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
+function ChevronIcon({ opened }: { opened: boolean }) {
   return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d={open ? "M18 15 12 9 6 15" : "M6 9l6 6 6-6"}
+        d={opened ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"}
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="2.3"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -181,9 +182,9 @@ function ChevronIcon({ open }: { open: boolean }) {
 }
 
 /* =========================================================
-  星評価：既存の部分塗り方式を維持
+  星評価コンポーネント
 ========================================================= */
-function StarRating({ value, size = 18 }: { value: number; size?: number }) {
+function StarRating({ value, size = 20 }: { value: number; size?: number }) {
   return (
     <span
       aria-label={`平均評価 ${value.toFixed(1)}`}
@@ -242,54 +243,6 @@ function StarRating({ value, size = 18 }: { value: number; size?: number }) {
   )
 }
 
-function RatingRow({ average, count }: { average: number; count: number }) {
-  const rounded = Math.floor(average * 10) / 10
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "14px",
-      }}
-    >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        <StarRating value={average} size={18} />
-        <span
-          style={{
-            color: COLORS.text,
-            fontSize: "20px",
-            fontWeight: 800,
-          }}
-        >
-          {rounded.toFixed(1)}
-        </span>
-      </span>
-
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          color: COLORS.slate,
-          fontSize: "18px",
-          fontWeight: 700,
-        }}
-      >
-        <CommentIcon size={21} />
-        <span>{count}件</span>
-      </span>
-    </div>
-  )
-}
-
 /* =========================================================
   補助関数
 ========================================================= */
@@ -308,7 +261,8 @@ function pickRepresentativeReview(reviews: ReviewRow[] | null): RepresentativeRe
     .map((review) => ({
       rating: Number(review.rating),
       comment: review.comment?.trim() ?? "",
-      created_at: review.created_at ?? null,
+      created_at: review.created_at,
+      user_id: review.user_id ?? null,
     }))
     .filter((review) => Number.isFinite(review.rating) && review.comment.length > 0)
 
@@ -352,17 +306,10 @@ function truncateText(text: string, length: number) {
   トップページ
 ========================================================= */
 export default function Home() {
-  return (
-    <Suspense fallback={null}>
-      <HomeContent />
-    </Suspense>
-  )
-}
-
-function HomeContent() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [stats, setStats] = useState<Record<string, ReviewStats>>({})
   const [sortMode, setSortMode] = useState<"default" | "popular">("default")
+  const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -372,9 +319,6 @@ function HomeContent() {
 
   const router = useRouter()
 
-  /* ---------------------------------------------------------
-    URLクエリ取得
-  --------------------------------------------------------- */
   useEffect(() => {
     const applyQueryFromUrl = () => {
       const params = new URLSearchParams(window.location.search)
@@ -389,20 +333,19 @@ function HomeContent() {
     }
   }, [])
 
-  /* ---------------------------------------------------------
-    ログイン状態取得
-  --------------------------------------------------------- */
   useEffect(() => {
     async function loadUserAndProfile() {
       const { data } = await supabase.auth.getUser()
       const user = data.user
 
       if (!user) {
+        setUserId(null)
         setUserEmail(null)
         setUserName(null)
         return
       }
 
+      setUserId(user.id)
       setUserEmail(user.email ?? null)
 
       const { data: profile, error } = await supabase
@@ -431,61 +374,30 @@ function HomeContent() {
     }
   }, [])
 
-  /* ---------------------------------------------------------
-    DB取得
-    reviews.comment / created_at がない環境でも落ちにくいように fallback
-  --------------------------------------------------------- */
   useEffect(() => {
     async function fetchProblems() {
       setIsLoading(true)
       setErrorMessage(null)
 
-      const primaryResult = await supabase
+      const { data, error } = await supabase
         .from("problems")
         .select(`
           id,
           title,
           content,
           created_at,
+          user_id,
           problem_tags (
             tags ( name )
           ),
           reviews (
             rating,
             comment,
-            created_at
+            created_at,
+            user_id
           )
         `)
         .order("created_at", { ascending: false })
-
-      let data: unknown = primaryResult.data
-      let error: { message: string } | null = primaryResult.error
-
-      if (error) {
-        console.warn(
-          "reviews.comment / created_at 付き取得に失敗。ratingのみで再取得します:",
-          error.message
-        )
-
-        const fallbackResult = await supabase
-          .from("problems")
-          .select(`
-            id,
-            title,
-            content,
-            created_at,
-            problem_tags (
-              tags ( name )
-            ),
-            reviews (
-              rating
-            )
-          `)
-          .order("created_at", { ascending: false })
-
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
 
       if (error) {
         console.error("Supabase取得エラー:", error.message)
@@ -494,13 +406,14 @@ function HomeContent() {
         return
       }
 
-      const rows = (Array.isArray(data) ? data : []) as unknown as ProblemRow[]
+      const rows = (data ?? []) as unknown as ProblemRow[]
 
       const nextProblems: Problem[] = rows.map((p) => ({
         id: p.id,
         title: p.title,
         content: p.content,
         created_at: p.created_at,
+        user_id: p.user_id,
         tags: extractTagNames(p.problem_tags),
       }))
 
@@ -536,9 +449,6 @@ function HomeContent() {
     }
   }, [])
 
-  /* ---------------------------------------------------------
-    開閉・タグクリック
-  --------------------------------------------------------- */
   function toggleProblem(problemId: string) {
     setExpandedProblemIds((current) =>
       current.includes(problemId)
@@ -551,42 +461,31 @@ function HomeContent() {
     return expandedProblemIds.includes(problemId)
   }
 
-  function handleTagClick(tag: string) {
-    setQuery(tag)
-    router.push(`/?q=${encodeURIComponent(tag)}`)
-  }
+  const filteredProblems = [...problems]
+    .filter((p) => {
+      const keyword = query.trim().toLowerCase()
+      if (!keyword) return true
 
-  /* ---------------------------------------------------------
-    検索・並び替え
-  --------------------------------------------------------- */
-  const filteredProblems = useMemo(() => {
-    return [...problems]
-      .filter((p) => {
-        const keyword = query.trim().toLowerCase()
-        if (!keyword) return true
+      return (
+        p.title.toLowerCase().includes(keyword) ||
+        (p.content ?? "").toLowerCase().includes(keyword) ||
+        p.tags.some((tag) => tag.toLowerCase().includes(keyword))
+      )
+    })
+    .sort((a, b) => {
+      if (sortMode === "default") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
 
-        return (
-          p.title.toLowerCase().includes(keyword) ||
-          (p.content ?? "").toLowerCase().includes(keyword) ||
-          p.tags.some((tag) => tag.toLowerCase().includes(keyword))
-        )
-      })
-      .sort((a, b) => {
-        if (sortMode === "default") {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        }
+      const aAvg = stats[a.id]?.average ?? 0
+      const bAvg = stats[b.id]?.average ?? 0
 
-        const aAvg = stats[a.id]?.average ?? 0
-        const bAvg = stats[b.id]?.average ?? 0
+      if (bAvg !== aAvg) return bAvg - aAvg
 
-        if (bAvg !== aAvg) return bAvg - aAvg
-
-        const aCount = stats[a.id]?.count ?? 0
-        const bCount = stats[b.id]?.count ?? 0
-
-        return bCount - aCount
-      })
-  }, [problems, query, sortMode, stats])
+      const aCount = stats[a.id]?.count ?? 0
+      const bCount = stats[b.id]?.count ?? 0
+      return bCount - aCount
+    })
 
   const totalReviews = Object.values(stats).reduce((sum, s) => sum + s.count, 0)
 
@@ -596,33 +495,29 @@ function HomeContent() {
         minHeight: "100vh",
         backgroundColor: COLORS.paper,
         color: COLORS.text,
-        padding: "28px 0 64px",
+        padding: "34px 0 72px",
       }}
     >
       <div
         style={{
-          width: "min(1220px, calc(100vw - 48px))",
+          width: "min(1200px, calc(100vw - 48px))",
           margin: "0 auto",
         }}
       >
-        {/* =====================================================
-          ページ上部：Figma寄せ
-        ===================================================== */}
         <header
           style={{
             textAlign: "center",
-            paddingTop: "4px",
-            paddingBottom: "48px",
+            marginBottom: "46px",
           }}
         >
           <h1
             style={{
               margin: 0,
               color: COLORS.navy,
-              fontSize: "64px",
-              lineHeight: 1.08,
+              fontSize: "56px",
+              lineHeight: 1.1,
               fontWeight: 900,
-              letterSpacing: "-0.04em",
+              letterSpacing: "-0.05em",
             }}
           >
             問ログ
@@ -630,51 +525,46 @@ function HomeContent() {
 
           <p
             style={{
-              margin: "24px 0 0",
+              margin: "18px 0 0",
               color: COLORS.slate,
-              fontSize: "24px",
+              fontSize: "20px",
+              lineHeight: 1.7,
               fontWeight: 600,
-              lineHeight: 1.6,
             }}
           >
             学問の問題を投稿・レビューするプラットフォーム
           </p>
 
-          <div style={{ marginTop: "30px" }}>
-            <Link
-              href="/new"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: "224px",
-                height: "72px",
-                padding: "0 34px",
-                borderRadius: "16px",
-                backgroundColor: COLORS.teal,
-                color: "#FFFFFF",
-                fontSize: "22px",
-                fontWeight: 900,
-                textDecoration: "none",
-                boxShadow: "0 4px 14px rgba(42, 157, 143, 0.18)",
-              }}
-            >
-              問題を投稿する
-            </Link>
-          </div>
+          <Link
+            href="/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "70px",
+              padding: "0 38px",
+              marginTop: "26px",
+              borderRadius: "14px",
+              backgroundColor: COLORS.teal,
+              color: "#FFFFFF",
+              fontSize: "24px",
+              fontWeight: 900,
+              textDecoration: "none",
+              boxShadow: "0 4px 14px rgba(42, 157, 143, 0.22)",
+            }}
+          >
+            問題を投稿する
+          </Link>
         </header>
 
-        {/* =====================================================
-          ログインバー
-        ===================================================== */}
         <section
           style={{
             backgroundColor: COLORS.surface,
             border: `1px solid ${COLORS.line}`,
-            borderRadius: "16px",
+            borderRadius: "14px",
             boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            padding: "20px 28px",
-            marginBottom: "38px",
+            padding: "18px 24px",
+            marginBottom: "30px",
           }}
         >
           {userEmail ? (
@@ -683,34 +573,28 @@ function HomeContent() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: "24px",
+                gap: "20px",
                 flexWrap: "wrap",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
-                  color: COLORS.slate,
-                  fontSize: "18px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <UserIcon />
-                <span>{userEmail}</span>
-                <span style={{ color: COLORS.muted }}>/</span>
-                <span style={{ fontSize: "15px" }}>{userName ?? "ユーザー名未設定"}</span>
-              </div>
+              {userId && (
+                <UserMiniBadge
+                  userId={userId}
+                  email={userEmail}
+                  userName={userName}
+                  size="sm"
+                  showEmail
+                />
+              )}
 
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "28px",
+                  gap: "24px",
                   flexWrap: "wrap",
                   color: COLORS.slate,
-                  fontSize: "16px",
+                  fontSize: "17px",
                   fontWeight: 800,
                 }}
               >
@@ -719,7 +603,7 @@ function HomeContent() {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "8px",
+                    gap: "7px",
                     color: COLORS.slate,
                     textDecoration: "none",
                   }}
@@ -733,12 +617,12 @@ function HomeContent() {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "8px",
+                    gap: "7px",
                     color: COLORS.slate,
                     textDecoration: "none",
                   }}
                 >
-                  <GearIcon size={21} />
+                  <SettingsIcon size={21} />
                   設定
                 </Link>
 
@@ -746,13 +630,14 @@ function HomeContent() {
                   type="button"
                   onClick={async () => {
                     await supabase.auth.signOut()
+                    setUserId(null)
                     setUserEmail(null)
                     setUserName(null)
                   }}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "8px",
+                    gap: "7px",
                     border: "none",
                     background: "transparent",
                     color: COLORS.slate,
@@ -773,22 +658,19 @@ function HomeContent() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: "24px",
+                gap: "16px",
                 flexWrap: "wrap",
               }}
             >
-              <div
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
                   color: COLORS.slate,
-                  fontSize: "18px",
+                  fontSize: "16px",
+                  fontWeight: 700,
                 }}
               >
-                <UserIcon />
-                <span>ログインしていません</span>
-              </div>
+                ログインしていません
+              </span>
 
               <Link
                 href="/login"
@@ -796,13 +678,14 @@ function HomeContent() {
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  padding: "12px 18px",
-                  borderRadius: "12px",
+                  minHeight: "42px",
+                  padding: "0 18px",
+                  borderRadius: "999px",
                   backgroundColor: COLORS.navy,
                   color: "#FFFFFF",
+                  textDecoration: "none",
                   fontSize: "15px",
                   fontWeight: 900,
-                  textDecoration: "none",
                 }}
               >
                 ログイン / 新規登録
@@ -811,55 +694,51 @@ function HomeContent() {
           )}
         </section>
 
-        {/* =====================================================
-          サマリー
-        ===================================================== */}
         <section
           style={{
             display: "flex",
+            gap: "34px",
             flexWrap: "wrap",
-            gap: "28px 40px",
+            marginBottom: "44px",
+            padding: "0 24px",
             color: COLORS.slate,
-            fontSize: "18px",
-            marginBottom: "48px",
-            paddingLeft: "24px",
+            fontSize: "17px",
+            fontWeight: 700,
           }}
         >
           <span>
             投稿問題数:{" "}
-            <strong style={{ color: COLORS.navy, fontWeight: 500 }}>{problems.length}</strong>
+            <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>{problems.length}</strong>
           </span>
+
           <span>
             レビュー数:{" "}
-            <strong style={{ color: COLORS.navy, fontWeight: 500 }}>{totalReviews}</strong>
+            <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>{totalReviews}</strong>
           </span>
+
           <span>
             表示件数:{" "}
-            <strong style={{ color: COLORS.navy, fontWeight: 500 }}>
+            <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>
               {filteredProblems.length}
             </strong>
           </span>
         </section>
 
-        {/* =====================================================
-          検索パネル
-        ===================================================== */}
         <section
           style={{
             backgroundColor: COLORS.tealPanel,
             borderLeft: `6px solid ${COLORS.teal}`,
-            borderRadius: "16px",
-            padding: "36px 42px",
-            marginBottom: "42px",
+            borderRadius: "14px",
+            padding: "34px 38px",
+            marginBottom: "44px",
           }}
         >
           <h2
             style={{
-              margin: 0,
+              margin: "0 0 26px",
               color: COLORS.navy,
-              fontSize: "34px",
+              fontSize: "30px",
               fontWeight: 900,
-              lineHeight: 1.2,
             }}
           >
             問題を探す
@@ -867,67 +746,73 @@ function HomeContent() {
 
           <div
             style={{
-              marginTop: "30px",
               display: "flex",
+              gap: "24px",
               alignItems: "center",
-              gap: "14px",
               flexWrap: "wrap",
             }}
           >
-            <button
-              type="button"
-              onClick={() => setSortMode("default")}
+            <div
               style={{
-                height: "64px",
-                padding: "0 24px",
-                borderRadius: "12px",
-                border: `1px solid ${sortMode === "default" ? COLORS.teal : COLORS.lineStrong}`,
-                backgroundColor: sortMode === "default" ? COLORS.teal : COLORS.surface,
-                color: sortMode === "default" ? "#FFFFFF" : COLORS.navy,
-                fontSize: "22px",
-                fontWeight: 900,
-                cursor: "pointer",
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
               }}
             >
-              新着順
-            </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("default")}
+                style={{
+                  minHeight: "62px",
+                  padding: "0 22px",
+                  borderRadius: "12px",
+                  border: `1px solid ${sortMode === "default" ? COLORS.teal : COLORS.line}`,
+                  backgroundColor: sortMode === "default" ? COLORS.teal : COLORS.surface,
+                  color: sortMode === "default" ? "#FFFFFF" : COLORS.navy,
+                  fontSize: "20px",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                新着順
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setSortMode("popular")}
-              style={{
-                height: "64px",
-                padding: "0 24px",
-                borderRadius: "12px",
-                border: `1px solid ${sortMode === "popular" ? COLORS.teal : COLORS.lineStrong}`,
-                backgroundColor: sortMode === "popular" ? COLORS.teal : COLORS.surface,
-                color: sortMode === "popular" ? "#FFFFFF" : COLORS.navy,
-                fontSize: "22px",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              人気順
-            </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("popular")}
+                style={{
+                  minHeight: "62px",
+                  padding: "0 22px",
+                  borderRadius: "12px",
+                  border: `1px solid ${sortMode === "popular" ? COLORS.teal : COLORS.line}`,
+                  backgroundColor: sortMode === "popular" ? COLORS.teal : COLORS.surface,
+                  color: sortMode === "popular" ? "#FFFFFF" : COLORS.navy,
+                  fontSize: "20px",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                人気順
+              </button>
+            </div>
 
             <div
               style={{
+                flex: "1 1 420px",
                 position: "relative",
-                flex: "1 1 520px",
-                minWidth: "260px",
               }}
             >
               <span
                 style={{
                   position: "absolute",
-                  left: "18px",
                   top: "50%",
+                  left: "18px",
                   transform: "translateY(-50%)",
                   color: COLORS.slate,
                   display: "inline-flex",
                 }}
               >
-                <SearchIcon size={25} />
+                <SearchIcon />
               </span>
 
               <input
@@ -936,14 +821,14 @@ function HomeContent() {
                 placeholder="問題を検索..."
                 style={{
                   width: "100%",
-                  height: "64px",
+                  height: "62px",
                   borderRadius: "12px",
-                  border: `1px solid ${COLORS.lineStrong}`,
+                  border: `1px solid ${COLORS.line}`,
                   backgroundColor: COLORS.surface,
                   color: COLORS.text,
-                  fontSize: "20px",
+                  fontSize: "19px",
+                  padding: "0 18px 0 58px",
                   outline: "none",
-                  padding: "0 18px 0 60px",
                 }}
               />
             </div>
@@ -956,13 +841,13 @@ function HomeContent() {
                   router.push("/")
                 }}
                 style={{
-                  height: "64px",
-                  padding: "0 20px",
-                  borderRadius: "12px",
-                  border: `1px solid ${COLORS.lineStrong}`,
+                  minHeight: "50px",
+                  border: `1px solid ${COLORS.tealLine}`,
                   backgroundColor: COLORS.surface,
                   color: COLORS.teal,
-                  fontSize: "17px",
+                  borderRadius: "999px",
+                  padding: "0 18px",
+                  fontSize: "15px",
                   fontWeight: 900,
                   cursor: "pointer",
                 }}
@@ -973,9 +858,6 @@ function HomeContent() {
           </div>
         </section>
 
-        {/* =====================================================
-          問題一覧
-        ===================================================== */}
         <section>
           <div
             style={{
@@ -984,41 +866,42 @@ function HomeContent() {
               justifyContent: "space-between",
               gap: "16px",
               flexWrap: "wrap",
-              marginBottom: "34px",
+              marginBottom: "28px",
             }}
           >
-            <h2
-              style={{
-                margin: 0,
-                color: COLORS.navy,
-                fontSize: "34px",
-                fontWeight: 900,
-                lineHeight: 1.2,
-              }}
-            >
-              問題一覧
-            </h2>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  color: COLORS.navy,
+                  fontSize: "32px",
+                  fontWeight: 900,
+                }}
+              >
+                問題一覧
+              </h2>
 
-            <p
-              style={{
-                margin: 0,
-                color: COLORS.teal,
-                fontSize: "16px",
-                fontWeight: 900,
-              }}
-            >
-              {sortMode === "default" ? "新着順で表示中" : "人気順で表示中"} /{" "}
-              {filteredProblems.length}件
-            </p>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.slate,
+                  fontSize: "15px",
+                  fontWeight: 700,
+                }}
+              >
+                {sortMode === "default" ? "新着順" : "人気順"}で表示中 /{" "}
+                {filteredProblems.length}件
+              </p>
+            </div>
           </div>
 
           {errorMessage ? (
             <div
               style={{
                 backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "20px",
-                padding: "28px",
+                border: `1px solid ${COLORS.cardLine}`,
+                borderRadius: "22px",
+                padding: "30px",
                 color: COLORS.danger,
                 boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
               }}
@@ -1029,9 +912,9 @@ function HomeContent() {
             <div
               style={{
                 backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "20px",
-                padding: "28px",
+                border: `1px solid ${COLORS.cardLine}`,
+                borderRadius: "22px",
+                padding: "30px",
                 color: COLORS.muted,
                 boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
               }}
@@ -1042,9 +925,9 @@ function HomeContent() {
             <div
               style={{
                 backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "20px",
-                padding: "28px",
+                border: `1px solid ${COLORS.cardLine}`,
+                borderRadius: "22px",
+                padding: "30px",
                 color: COLORS.muted,
                 boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
               }}
@@ -1055,7 +938,7 @@ function HomeContent() {
             <div
               style={{
                 display: "grid",
-                gap: "34px",
+                gap: "32px",
               }}
             >
               {filteredProblems.map((p) => {
@@ -1069,203 +952,172 @@ function HomeContent() {
                   <article
                     key={p.id}
                     style={{
-                      position: "relative",
                       backgroundColor: COLORS.surface,
-                      border: `1px solid ${opened ? "#9FD4CA" : COLORS.line}`,
+                      border: `1px solid ${
+                        opened ? "rgba(42, 157, 143, 0.48)" : COLORS.cardLine
+                      }`,
                       borderRadius: "22px",
                       boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
                       overflow: "hidden",
                     }}
                   >
-                    {!opened ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleProblem(p.id)}
+                      aria-expanded={opened}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        padding: opened ? "30px 36px" : "34px 36px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
                       <div
                         style={{
-                          position: "relative",
-                          padding: "36px 36px 34px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          gap: "22px",
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleProblem(p.id)}
-                          aria-expanded={opened}
-                          aria-label={`${p.title}を開く`}
-                          style={{
-                            position: "absolute",
-                            top: "34px",
-                            right: "34px",
-                            border: "none",
-                            background: "transparent",
-                            color: COLORS.slate,
-                            cursor: "pointer",
-                            padding: 0,
-                          }}
-                        >
-                          <ChevronIcon open={false} />
-                        </button>
+                        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+                          {p.user_id && (
+                            <div style={{ marginBottom: "18px" }}>
+                              <UserMiniBadge userId={p.user_id} size="sm" showEmail={false} />
+                            </div>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => toggleProblem(p.id)}
-                          aria-expanded={opened}
-                          style={{
-                            display: "block",
-                            width: "calc(100% - 56px)",
-                            border: "none",
-                            background: "transparent",
-                            padding: 0,
-                            margin: 0,
-                            textAlign: "left",
-                            cursor: "pointer",
-                          }}
-                        >
                           <h3
                             style={{
                               margin: 0,
                               color: COLORS.navy,
-                              fontSize: "28px",
+                              fontSize: "26px",
                               lineHeight: 1.45,
                               fontWeight: 900,
-                              letterSpacing: "-0.01em",
                             }}
                           >
                             {p.title}
                           </h3>
-                        </button>
 
-                        <div style={{ marginTop: "24px" }}>
-                          <RatingRow average={average} count={count} />
-                        </div>
-
-                        {p.tags.length > 0 && (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "12px",
-                              marginTop: "26px",
-                            }}
-                          >
-                            {p.tags.map((tag) => {
-                              const isActive = query.trim().toLowerCase() === tag.toLowerCase()
-
-                              return (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  onClick={() => handleTagClick(tag)}
-                                  style={{
-                                    border: "none",
-                                    borderRadius: "999px",
-                                    backgroundColor: isActive ? COLORS.teal : COLORS.tagBg,
-                                    color: isActive ? "#FFFFFF" : COLORS.tagText,
-                                    padding: "10px 20px",
-                                    fontSize: "18px",
-                                    fontWeight: 900,
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  {tag}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ padding: "16px" }}>
-                        <div
-                          style={{
-                            border: "2px solid #9FD4CA",
-                            borderRadius: "6px",
-                            padding: "28px 36px 28px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              justifyContent: "space-between",
-                              gap: "18px",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => toggleProblem(p.id)}
-                              aria-expanded={opened}
-                              style={{
-                                border: "none",
-                                background: "transparent",
-                                padding: 0,
-                                textAlign: "left",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <h3
-                                style={{
-                                  margin: 0,
-                                  color: COLORS.navy,
-                                  fontSize: "28px",
-                                  lineHeight: 1.45,
-                                  fontWeight: 900,
-                                }}
-                              >
-                                {p.title}
-                              </h3>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => toggleProblem(p.id)}
-                              aria-expanded={opened}
-                              aria-label={`${p.title}を閉じる`}
-                              style={{
-                                border: "none",
-                                background: "transparent",
-                                color: COLORS.slate,
-                                cursor: "pointer",
-                                padding: 0,
-                              }}
-                            >
-                              <ChevronIcon open={true} />
-                            </button>
-                          </div>
-
-                          <div style={{ marginTop: "24px" }}>
-                            <RatingRow average={average} count={count} />
-                          </div>
-                        </div>
-
-                        <div style={{ padding: "30px 22px 22px" }}>
                           <div
                             style={{
                               display: "flex",
                               alignItems: "center",
+                              gap: "14px",
                               flexWrap: "wrap",
-                              gap: "18px 26px",
-                              color: COLORS.slate,
-                              fontSize: "19px",
-                              lineHeight: 1.7,
+                              marginTop: "20px",
                             }}
                           >
-                            <span>投稿日: {formatDate(p.created_at)}</span>
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                color: COLORS.navy,
+                                fontSize: "20px",
+                                fontWeight: 900,
+                              }}
+                            >
+                              <StarRating value={average} />
+                              {rounded.toFixed(1)}
+                            </span>
 
                             <span
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: "10px",
+                                gap: "7px",
+                                color: COLORS.slate,
+                                fontSize: "18px",
+                                fontWeight: 700,
                               }}
                             >
-                              <StarRating value={average} size={18} />
-                              <strong style={{ color: COLORS.navy }}>{rounded.toFixed(1)}</strong>
+                              <CommentIcon size={22} />
+                              {count}件
                             </span>
                           </div>
+                        </div>
 
+                        <span
+                          style={{
+                            color: COLORS.slate,
+                            marginTop: "8px",
+                            flex: "0 0 auto",
+                          }}
+                        >
+                          <ChevronIcon opened={opened} />
+                        </span>
+                      </div>
+
+                      {!opened && p.tags.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                            marginTop: "22px",
+                          }}
+                        >
+                          {p.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              style={{
+                                borderRadius: "999px",
+                                backgroundColor: COLORS.tagBg,
+                                color: COLORS.tagText,
+                                padding: "8px 18px",
+                                fontSize: "18px",
+                                fontWeight: 900,
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+
+                    {opened && (
+                      <div
+                        style={{
+                          borderTop: `1px solid ${COLORS.line}`,
+                          padding: "28px 36px 36px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "16px",
+                            flexWrap: "wrap",
+                            color: COLORS.slate,
+                            fontSize: "17px",
+                            fontWeight: 700,
+                            marginBottom: "24px",
+                          }}
+                        >
+                          <span>投稿日: {formatDate(p.created_at)}</span>
+
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <StarRating value={average} />
+                            <strong style={{ color: COLORS.navy }}>{rounded.toFixed(1)}</strong>
+                          </span>
+                        </div>
+
+                        <section style={{ marginBottom: "28px" }}>
                           <h4
                             style={{
-                              margin: "28px 0 0",
+                              margin: "0 0 16px",
                               color: COLORS.navy,
-                              fontSize: "24px",
+                              fontSize: "21px",
                               fontWeight: 900,
                             }}
                           >
@@ -1275,119 +1127,124 @@ function HomeContent() {
                           {p.content ? (
                             <p
                               style={{
-                                margin: "20px 0 0",
+                                margin: 0,
                                 color: COLORS.text,
-                                fontSize: "22px",
-                                lineHeight: 1.85,
+                                fontSize: "20px",
+                                lineHeight: 1.9,
+                                whiteSpace: "pre-wrap",
                               }}
                             >
-                              {truncateText(p.content, 420)}
+                              {truncateText(p.content, 260)}
                             </p>
                           ) : (
                             <p
                               style={{
-                                margin: "20px 0 0",
+                                margin: 0,
                                 color: COLORS.muted,
-                                fontSize: "20px",
+                                fontSize: "17px",
                                 lineHeight: 1.8,
                               }}
                             >
                               本文はまだ登録されていません。
                             </p>
                           )}
+                        </section>
 
-                          {representativeReview && (
-                            <div
-                              style={{
-                                marginTop: "30px",
-                                backgroundColor: "#FBF8EF",
-                                borderRadius: "18px",
-                                padding: "26px 28px",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "10px",
-                                  color: COLORS.teal,
-                                  fontSize: "19px",
-                                  fontWeight: 900,
-                                  marginBottom: "14px",
-                                }}
-                              >
-                                <CommentIcon size={22} />
-                                <span>最も評価が高いコメント</span>
-                              </div>
-
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: COLORS.text,
-                                  fontSize: "19px",
-                                  lineHeight: 1.8,
-                                }}
-                              >
-                                {truncateText(representativeReview.comment, 220)}
-                              </p>
-                            </div>
-                          )}
-
-                          {p.tags.length > 0 && (
-                            <div
-                              style={{
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "12px",
-                                marginTop: "28px",
-                              }}
-                            >
-                              {p.tags.map((tag) => {
-                                const isActive = query.trim().toLowerCase() === tag.toLowerCase()
-
-                                return (
-                                  <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => handleTagClick(tag)}
-                                    style={{
-                                      border: "none",
-                                      borderRadius: "999px",
-                                      backgroundColor: isActive ? COLORS.teal : COLORS.tagBg,
-                                      color: isActive ? "#FFFFFF" : COLORS.tagText,
-                                      padding: "10px 20px",
-                                      fontSize: "18px",
-                                      fontWeight: 900,
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    {tag}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-
-                          <Link
-                            href={`/problems/${p.id}`}
+                        {representativeReview && (
+                          <section
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: "100%",
-                              minHeight: "72px",
-                              marginTop: "30px",
+                              backgroundColor: COLORS.softYellow,
                               borderRadius: "16px",
-                              backgroundColor: COLORS.navy,
-                              color: "#FFFFFF",
-                              fontSize: "24px",
-                              fontWeight: 900,
-                              textDecoration: "none",
+                              padding: "22px 24px",
+                              marginBottom: "24px",
                             }}
                           >
-                            詳細を見る
-                          </Link>
-                        </div>
+                            {representativeReview.user_id && (
+                              <div style={{ marginBottom: "14px" }}>
+                                <UserMiniBadge
+                                  userId={representativeReview.user_id}
+                                  size="sm"
+                                  showEmail={false}
+                                />
+                              </div>
+                            )}
+
+                            <p
+                              style={{
+                                margin: "0 0 12px",
+                                color: COLORS.teal,
+                                fontSize: "17px",
+                                fontWeight: 900,
+                              }}
+                            >
+                              最も評価が高いコメント
+                            </p>
+
+                            <p
+                              style={{
+                                margin: 0,
+                                color: COLORS.text,
+                                fontSize: "18px",
+                                lineHeight: 1.8,
+                              }}
+                            >
+                              {truncateText(representativeReview.comment, 180)}
+                            </p>
+                          </section>
+                        )}
+
+                        {p.tags.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "12px",
+                              marginBottom: "26px",
+                            }}
+                          >
+                            {p.tags.map((tag) => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => {
+                                  setQuery(tag)
+                                  router.push(`/?q=${encodeURIComponent(tag)}`)
+                                }}
+                                style={{
+                                  border: "none",
+                                  borderRadius: "999px",
+                                  backgroundColor: COLORS.tagBg,
+                                  color: COLORS.tagText,
+                                  padding: "9px 18px",
+                                  fontSize: "18px",
+                                  fontWeight: 900,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <Link
+                          href={`/problems/${p.id}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "100%",
+                            minHeight: "72px",
+                            borderRadius: "14px",
+                            backgroundColor: COLORS.navy,
+                            color: "#FFFFFF",
+                            textDecoration: "none",
+                            fontSize: "24px",
+                            fontWeight: 900,
+                          }}
+                        >
+                          詳細を見る
+                        </Link>
                       </div>
                     )}
                   </article>

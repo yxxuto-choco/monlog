@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 import UserMiniBadge from "@/components/UserMiniBadge"
 
 /* =========================================================
-  問ログ Design System
+  問ログ Design System(v1.5)
 ========================================================= */
 const COLORS = {
   paper: "#FAF7F0",

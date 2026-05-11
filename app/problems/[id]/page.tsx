@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
+import UserMiniBadge from "@/components/UserMiniBadge"
 
 /* =========================================================
-  問ログ Design System v1.5
+  問ログ Design System
 ========================================================= */
 const COLORS = {
   paper: "#FAF7F0",
@@ -25,38 +26,13 @@ const COLORS = {
   star: "#F4A261",
   starEmpty: "#D7D3C8",
   danger: "#DC2626",
+  success: "#2A9D8F",
   softYellow: "#FBF8EF",
 }
 
 /* =========================================================
   型定義
 ========================================================= */
-type Problem = {
-  id: string
-  title: string
-  content: string | null
-  created_at: string
-  tags: string[]
-}
-
-type Review = {
-  id: string
-  rating: number
-  comment: string | null
-  created_at: string | null
-  user_id: string | null
-  username: string | null
-}
-
-type ReviewRow = {
-  id: string
-  rating: number | string | null
-  comment?: string | null
-  created_at?: string | null
-  user_id?: string | null
-  profiles?: { username: string | null } | { username: string | null }[] | null
-}
-
 type TagRow = {
   name: string | null
 }
@@ -65,13 +41,39 @@ type ProblemTagRow = {
   tags: TagRow | TagRow[] | null
 }
 
+type ReviewRow = {
+  id: string
+  rating: number | string | null
+  comment: string | null
+  created_at: string | null
+  user_id?: string | null
+}
+
 type ProblemRow = {
   id: string
   title: string
   content: string | null
   created_at: string
+  user_id: string | null
   problem_tags: ProblemTagRow[] | null
   reviews: ReviewRow[] | null
+}
+
+type Problem = {
+  id: string
+  title: string
+  content: string | null
+  created_at: string
+  user_id: string | null
+  tags: string[]
+}
+
+type Review = {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string | null
+  user_id?: string | null
 }
 
 /* =========================================================
@@ -80,12 +82,7 @@ type ProblemRow = {
 function BackIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M19 12H5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path
         d="M12 19l-7-7 7-7"
         stroke="currentColor"
@@ -111,37 +108,12 @@ function CommentIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function UserIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M20 21a8 8 0 0 0-16 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-    </svg>
-  )
-}
-
 /* =========================================================
-  星評価：部分塗り方式
+  星評価
 ========================================================= */
-function StarRating({ value, size = 18 }: { value: number; size?: number }) {
+function StarRating({ value, size = 22 }: { value: number; size?: number }) {
   return (
-    <span
-      aria-label={`評価 ${value.toFixed(1)}`}
-      style={{
-        display: "inline-flex",
-        gap: "2px",
-        verticalAlign: "middle",
-      }}
-    >
+    <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
       {[1, 2, 3, 4, 5].map((star) => {
         const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
 
@@ -191,54 +163,6 @@ function StarRating({ value, size = 18 }: { value: number; size?: number }) {
   )
 }
 
-function RatingSummary({ average, count }: { average: number; count: number }) {
-  const rounded = Math.floor(average * 10) / 10
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "14px",
-      }}
-    >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "9px",
-        }}
-      >
-        <StarRating value={average} size={20} />
-        <span
-          style={{
-            color: COLORS.text,
-            fontSize: "22px",
-            fontWeight: 900,
-          }}
-        >
-          {rounded.toFixed(1)}
-        </span>
-      </span>
-
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          color: COLORS.slate,
-          fontSize: "18px",
-          fontWeight: 800,
-        }}
-      >
-        <CommentIcon size={21} />
-        <span>{count}件</span>
-      </span>
-    </div>
-  )
-}
-
 /* =========================================================
   補助関数
 ========================================================= */
@@ -252,241 +176,213 @@ function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
     .filter(Boolean)
 }
 
-function normalizeReviews(reviews: ReviewRow[] | null): Review[] {
-  return (reviews ?? [])
-    .map((review) => {
-      const profile = Array.isArray(review.profiles) ? review.profiles[0] : review.profiles
-
-      return {
-        id: review.id,
-        rating: Number(review.rating),
-        comment: review.comment ?? null,
-        created_at: review.created_at ?? null,
-        user_id: review.user_id ?? null,
-        username: profile?.username ?? null,
-      }
-    })
-    .filter((review) => Number.isFinite(review.rating))
-}
-
-function calcAverage(reviews: Review[]) {
-  if (reviews.length === 0) return 0
-  return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-}
-
 function formatDate(value: string | null) {
   if (!value) return ""
   return new Date(value).toISOString().slice(0, 10)
 }
 
-function sortReviews(reviews: Review[]) {
-  return [...reviews].sort((a, b) => {
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
-    return bTime - aTime
-  })
+function getProblemId(paramsId: string | string[] | undefined) {
+  if (Array.isArray(paramsId)) return paramsId[0]
+  return paramsId ?? ""
 }
 
 /* =========================================================
   詳細ページ
 ========================================================= */
 export default function ProblemDetailPage() {
-  const params = useParams<{ id: string }>()
+  const params = useParams()
   const router = useRouter()
-  const problemId = params?.id
+  const problemId = getProblemId(params.id as string | string[] | undefined)
 
   const [problem, setProblem] = useState<Problem | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
 
-  const [rating, setRating] = useState(5)
+  const [rating, setRating] = useState("5")
   const [comment, setComment] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const average = useMemo(() => calcAverage(reviews), [reviews])
-  const sortedReviews = useMemo(() => sortReviews(reviews), [reviews])
+  async function loadUserAndProfile() {
+    const { data } = await supabase.auth.getUser()
+    const user = data.user
 
-  /* ---------------------------------------------------------
-    ログイン状態取得
-  --------------------------------------------------------- */
-  useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser()
-      const user = data.user
-
-      setUserId(user?.id ?? null)
-      setUserEmail(user?.email ?? null)
+    if (!user) {
+      setUserId(null)
+      setUserEmail(null)
+      setUserName(null)
+      return
     }
 
-    loadUser()
+    setUserId(user.id)
+    setUserEmail(user.email ?? null)
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.warn("プロフィール取得エラー:", error.message)
+      setUserName(null)
+      return
+    }
+
+    setUserName(profile?.username ?? null)
+  }
+
+  async function fetchProblem() {
+    if (!problemId) return
+
+    setIsLoading(true)
+    setErrorMessage("")
+
+    const { data, error } = await supabase
+      .from("problems")
+      .select(`
+        id,
+        title,
+        content,
+        created_at,
+        user_id,
+        problem_tags (
+          tags ( name )
+        ),
+        reviews (
+          id,
+          rating,
+          comment,
+          created_at,
+          user_id
+        )
+      `)
+      .eq("id", problemId)
+      .maybeSingle()
+
+    if (error) {
+      console.error("問題詳細取得エラー:", error.message)
+      setErrorMessage("問題詳細の取得に失敗しました。")
+      setIsLoading(false)
+      return
+    }
+
+    if (!data) {
+      setProblem(null)
+      setReviews([])
+      setErrorMessage("問題が見つかりませんでした。")
+      setIsLoading(false)
+      return
+    }
+
+    const row = data as unknown as ProblemRow
+
+    setProblem({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      created_at: row.created_at,
+      user_id: row.user_id,
+      tags: extractTagNames(row.problem_tags),
+    })
+
+    const nextReviews: Review[] = (row.reviews ?? [])
+      .map((review) => ({
+        id: review.id,
+        rating: Number(review.rating),
+        comment: review.comment,
+        created_at: review.created_at,
+        user_id: review.user_id,
+      }))
+      .filter((review) => Number.isFinite(review.rating))
+      .sort((a, b) => {
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+        return bTime - aTime
+      })
+
+    setReviews(nextReviews)
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    loadUserAndProfile()
+    fetchProblem()
 
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUser()
+      loadUserAndProfile()
     })
 
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [])
-
-  /* ---------------------------------------------------------
-    問題詳細取得
-  --------------------------------------------------------- */
-  useEffect(() => {
-    if (!problemId) return
-
-    async function fetchProblem() {
-      setIsLoading(true)
-      setErrorMessage(null)
-
-      const primaryResult = await supabase
-        .from("problems")
-        .select(`
-          id,
-          title,
-          content,
-          created_at,
-          problem_tags (
-            tags ( name )
-          ),
-          reviews (
-            id,
-            rating,
-            comment,
-            created_at,
-            user_id,
-            profiles (
-              username
-            )
-          )
-        `)
-        .eq("id", problemId)
-        .maybeSingle()
-
-      let data: unknown = primaryResult.data
-      let error: { message: string } | null = primaryResult.error
-
-      if (error) {
-        console.warn(
-          "reviews.comment / profiles 付き取得に失敗。rating中心で再取得します:",
-          error.message
-        )
-
-        const fallbackResult = await supabase
-          .from("problems")
-          .select(`
-            id,
-            title,
-            content,
-            created_at,
-            problem_tags (
-              tags ( name )
-            ),
-            reviews (
-              id,
-              rating,
-              comment,
-              created_at,
-              user_id
-            )
-          `)
-          .eq("id", problemId)
-          .maybeSingle()
-
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
-
-      if (error) {
-        console.error("問題詳細取得エラー:", error.message)
-        setErrorMessage("問題詳細の取得に失敗しました。")
-        setIsLoading(false)
-        return
-      }
-
-      if (!data) {
-        setErrorMessage("問題が見つかりませんでした。")
-        setIsLoading(false)
-        return
-      }
-
-      const row = data as ProblemRow
-
-      setProblem({
-        id: row.id,
-        title: row.title,
-        content: row.content,
-        created_at: row.created_at,
-        tags: extractTagNames(row.problem_tags),
-      })
-
-      setReviews(normalizeReviews(row.reviews))
-      setIsLoading(false)
-    }
-
-    fetchProblem()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId])
 
-  /* ---------------------------------------------------------
-    レビュー投稿
-  --------------------------------------------------------- */
-  async function handleSubmitReview(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0
+    return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+  }, [reviews])
 
-    if (!problemId || !userId) return
+  const roundedAverage = Math.floor(averageRating * 10) / 10
 
-    setIsSubmitting(true)
-    setSubmitMessage(null)
-    setErrorMessage(null)
+  async function handleSubmitReview() {
+    setErrorMessage("")
+    setSuccessMessage("")
 
-    const payload = {
-      problem_id: problemId,
-      user_id: userId,
-      rating,
-      comment: comment.trim() || null,
+    if (!problem) return
+
+    const parsedRating = Number(rating)
+
+    if (
+      !Number.isFinite(parsedRating) ||
+      !Number.isInteger(parsedRating) ||
+      parsedRating < 1 ||
+      parsedRating > 5
+    ) {
+      setErrorMessage("評価は1〜5の整数で選択してください。")
+      return
     }
 
-    const { error } = await supabase.from("reviews").insert(payload)
+    if (!comment.trim()) {
+      setErrorMessage("コメントを入力してください。")
+      return
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !userData.user) {
+      setErrorMessage("レビューするにはログインが必要です。")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    const { error } = await supabase.from("reviews").insert({
+      problem_id: problem.id,
+      user_id: userData.user.id,
+      rating: parsedRating,
+      comment: comment.trim(),
+    })
 
     if (error) {
       console.error("レビュー投稿エラー:", error.message)
-      setSubmitMessage("レビューの投稿に失敗しました。")
+      setErrorMessage(`レビュー投稿に失敗しました：${error.message}`)
       setIsSubmitting(false)
       return
     }
 
     setComment("")
-    setRating(5)
-    setSubmitMessage("レビューを投稿しました。")
-
-    const { data, error: refetchError } = await supabase
-      .from("reviews")
-      .select(`
-        id,
-        rating,
-        comment,
-        created_at,
-        user_id,
-        profiles (
-          username
-        )
-      `)
-      .eq("problem_id", problemId)
-      .order("created_at", { ascending: false })
-
-    if (!refetchError) {
-      setReviews(normalizeReviews((data ?? []) as unknown as ReviewRow[]))
-    }
-
+    setRating("5")
+    setSuccessMessage("レビューを投稿しました。")
     setIsSubmitting(false)
-  }
 
-  function handleTagClick(tag: string) {
-    router.push(`/?q=${encodeURIComponent(tag)}`)
+    await fetchProblem()
   }
 
   if (isLoading) {
@@ -498,12 +394,7 @@ export default function ProblemDetailPage() {
           padding: "48px 0",
         }}
       >
-        <div
-          style={{
-            width: "min(1100px, calc(100vw - 48px))",
-            margin: "0 auto",
-          }}
-        >
+        <div style={{ width: "min(980px, calc(100vw - 48px))", margin: "0 auto" }}>
           <div
             style={{
               backgroundColor: COLORS.surface,
@@ -521,7 +412,7 @@ export default function ProblemDetailPage() {
     )
   }
 
-  if (errorMessage || !problem) {
+  if (!problem) {
     return (
       <main
         style={{
@@ -530,12 +421,7 @@ export default function ProblemDetailPage() {
           padding: "48px 0",
         }}
       >
-        <div
-          style={{
-            width: "min(1100px, calc(100vw - 48px))",
-            margin: "0 auto",
-          }}
-        >
+        <div style={{ width: "min(980px, calc(100vw - 48px))", margin: "0 auto" }}>
           <Link
             href="/"
             style={{
@@ -543,14 +429,14 @@ export default function ProblemDetailPage() {
               alignItems: "center",
               gap: "8px",
               color: COLORS.teal,
-              fontSize: "16px",
+              fontSize: "17px",
               fontWeight: 900,
               textDecoration: "none",
-              marginBottom: "24px",
+              marginBottom: "28px",
             }}
           >
             <BackIcon />
-            問題一覧へ戻る
+            一覧へ戻る
           </Link>
 
           <div
@@ -561,9 +447,10 @@ export default function ProblemDetailPage() {
               padding: "32px",
               color: COLORS.danger,
               boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+              fontWeight: 900,
             }}
           >
-            {errorMessage ?? "問題が見つかりませんでした。"}
+            {errorMessage || "問題が見つかりませんでした。"}
           </div>
         </div>
       </main>
@@ -581,13 +468,10 @@ export default function ProblemDetailPage() {
     >
       <div
         style={{
-          width: "min(1100px, calc(100vw - 48px))",
+          width: "min(980px, calc(100vw - 48px))",
           margin: "0 auto",
         }}
       >
-        {/* =====================================================
-          戻る導線・パンくず
-        ===================================================== */}
         <nav
           style={{
             marginBottom: "28px",
@@ -598,8 +482,9 @@ export default function ProblemDetailPage() {
             flexWrap: "wrap",
           }}
         >
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={() => router.back()}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -608,11 +493,15 @@ export default function ProblemDetailPage() {
               fontSize: "17px",
               fontWeight: 900,
               textDecoration: "none",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              cursor: "pointer",
             }}
           >
             <BackIcon />
-            問題一覧へ戻る
-          </Link>
+            戻る
+          </button>
 
           <div
             style={{
@@ -625,77 +514,72 @@ export default function ProblemDetailPage() {
           </div>
         </nav>
 
-        {/* =====================================================
-          問題ヘッダーカード
-        ===================================================== */}
         <section
           style={{
             backgroundColor: COLORS.surface,
             border: `1px solid ${COLORS.line}`,
-            borderRadius: "24px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
+            borderRadius: "26px",
             padding: "36px",
-            marginBottom: "30px",
+            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
+            marginBottom: "28px",
           }}
         >
-          <div
+          {problem.user_id && (
+            <div style={{ marginBottom: "24px" }}>
+              <UserMiniBadge userId={problem.user_id} size="md" showEmail={false} />
+            </div>
+          )}
+
+          <h1
             style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: "24px",
-              flexWrap: "wrap",
+              margin: 0,
+              color: COLORS.navy,
+              fontSize: "40px",
+              lineHeight: 1.35,
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
             }}
           >
-            <div style={{ flex: "1 1 620px" }}>
-              <p
-                style={{
-                  margin: 0,
-                  color: COLORS.teal,
-                  fontSize: "14px",
-                  fontWeight: 900,
-                  letterSpacing: "0.14em",
-                }}
-              >
-                PROBLEM DETAIL
-              </p>
+            {problem.title}
+          </h1>
 
-              <h1
-                style={{
-                  margin: "14px 0 0",
-                  color: COLORS.navy,
-                  fontSize: "40px",
-                  lineHeight: 1.35,
-                  fontWeight: 900,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                {problem.title}
-              </h1>
+          <div
+            style={{
+              marginTop: "22px",
+              display: "flex",
+              alignItems: "center",
+              gap: "18px",
+              flexWrap: "wrap",
+              color: COLORS.slate,
+              fontSize: "16px",
+              fontWeight: 700,
+            }}
+          >
+            <span>投稿日: {formatDate(problem.created_at)}</span>
 
-              <p
-                style={{
-                  margin: "18px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "18px",
-                  fontWeight: 700,
-                }}
-              >
-                投稿日: {formatDate(problem.created_at)}
-              </p>
-            </div>
-
-            <div
+            <span
               style={{
-                flex: "0 0 auto",
-                backgroundColor: COLORS.tealPanel,
-                borderRadius: "18px",
-                padding: "20px 22px",
-                minWidth: "230px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "10px",
               }}
             >
-              <RatingSummary average={average} count={reviews.length} />
-            </div>
+              <StarRating value={averageRating} size={22} />
+              <strong style={{ color: COLORS.navy, fontSize: "22px" }}>
+                {roundedAverage.toFixed(1)}
+              </strong>
+            </span>
+
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+              }}
+            >
+              <CommentIcon size={21} />
+              {reviews.length}件
+            </span>
           </div>
 
           {problem.tags.length > 0 && (
@@ -703,44 +587,76 @@ export default function ProblemDetailPage() {
               style={{
                 display: "flex",
                 flexWrap: "wrap",
-                gap: "12px",
-                marginTop: "30px",
+                gap: "10px",
+                marginTop: "24px",
               }}
             >
               {problem.tags.map((tag) => (
-                <button
+                <Link
                   key={tag}
-                  type="button"
-                  onClick={() => handleTagClick(tag)}
+                  href={`/?q=${encodeURIComponent(tag)}`}
                   style={{
-                    border: "none",
                     borderRadius: "999px",
                     backgroundColor: COLORS.tagBg,
                     color: COLORS.tagText,
-                    padding: "10px 20px",
-                    fontSize: "17px",
+                    padding: "9px 18px",
+                    fontSize: "15px",
                     fontWeight: 900,
-                    cursor: "pointer",
+                    textDecoration: "none",
                   }}
                 >
-                  {tag}
-                </button>
+                  #{tag}
+                </Link>
               ))}
             </div>
           )}
         </section>
 
-        {/* =====================================================
-          問題本文カード
-        ===================================================== */}
         <section
           style={{
             backgroundColor: COLORS.surface,
             border: `1px solid ${COLORS.line}`,
             borderRadius: "24px",
+            padding: "34px 36px",
             boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            padding: "36px",
-            marginBottom: "30px",
+            marginBottom: "28px",
+          }}
+        >
+          <h2
+            style={{
+              margin: "0 0 22px",
+              color: COLORS.navy,
+              fontSize: "28px",
+              fontWeight: 900,
+            }}
+          >
+            問題内容
+          </h2>
+
+          {problem.content ? (
+            <ProblemMarkdown content={problem.content} />
+          ) : (
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.muted,
+                fontSize: "17px",
+                lineHeight: 1.8,
+              }}
+            >
+              本文はまだ登録されていません。
+            </p>
+          )}
+        </section>
+
+        <section
+          style={{
+            backgroundColor: COLORS.tealPanel,
+            border: "1px solid #B8DCD5",
+            borderLeft: `6px solid ${COLORS.teal}`,
+            borderRadius: "22px",
+            padding: "30px 34px",
+            marginBottom: "32px",
           }}
         >
           <h2
@@ -751,130 +667,85 @@ export default function ProblemDetailPage() {
               fontWeight: 900,
             }}
           >
-            問題内容
+            レビューを書く
           </h2>
 
-          {problem.content ? (
-            <div style={{ marginTop: "24px" }}>
-            <ProblemMarkdown content={problem.content} />
-            </div>
-          ) : (
-            <p
-              style={{
-                margin: "24px 0 0",
-                color: COLORS.muted,
-                fontSize: "18px",
-                lineHeight: 1.8,
-              }}
-            >
-              本文はまだ登録されていません。
-            </p>
-          )}
-        </section>
-
-        {/* =====================================================
-          レビュー投稿カード / ログイン誘導カード
-        ===================================================== */}
-        <section
-          style={{
-            backgroundColor: userId ? COLORS.tealPanel : COLORS.surface,
-            border: `1px solid ${userId ? "#B8DCD5" : COLORS.line}`,
-            borderLeft: `6px solid ${userId ? COLORS.teal : COLORS.navy}`,
-            borderRadius: "20px",
-            padding: "32px 34px",
-            marginBottom: "38px",
-          }}
-        >
           {userId ? (
-            <form onSubmit={handleSubmitReview}>
-              <h2
+            <>
+              <div
                 style={{
-                  margin: 0,
-                  color: COLORS.navy,
-                  fontSize: "28px",
-                  fontWeight: 900,
+                  marginTop: "18px",
+                  marginBottom: "22px",
+                  padding: "16px 18px",
+                  borderRadius: "18px",
+                  backgroundColor: COLORS.surface,
+                  border: `1px solid ${COLORS.line}`,
                 }}
               >
-                レビューを書く
-              </h2>
-
-              <p
-                style={{
-                  margin: "10px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "16px",
-                  lineHeight: 1.7,
-                }}
-              >
-                ログイン中: {userEmail}
-              </p>
-
-              <div style={{ marginTop: "26px" }}>
-                <p
-                  style={{
-                    margin: "0 0 12px",
-                    color: COLORS.navy,
-                    fontSize: "17px",
-                    fontWeight: 900,
-                  }}
-                >
-                  評価
-                </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "10px",
-                  }}
-                >
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setRating(value)}
-                      style={{
-                        minWidth: "58px",
-                        height: "48px",
-                        borderRadius: "12px",
-                        border: `1px solid ${rating === value ? COLORS.teal : COLORS.lineStrong}`,
-                        backgroundColor: rating === value ? COLORS.teal : COLORS.surface,
-                        color: rating === value ? "#FFFFFF" : COLORS.navy,
-                        fontSize: "18px",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: "14px" }}>
-                  <StarRating value={rating} size={22} />
-                </div>
+                <UserMiniBadge
+                  userId={userId}
+                  email={userEmail}
+                  userName={userName}
+                  size="md"
+                  showEmail
+                />
               </div>
 
-              <div style={{ marginTop: "24px" }}>
+              <div style={{ marginBottom: "18px" }}>
                 <label
-                  htmlFor="review-comment"
                   style={{
                     display: "block",
                     color: COLORS.navy,
+                    fontSize: "16px",
+                    fontWeight: 900,
+                    marginBottom: "8px",
+                  }}
+                >
+                  評価
+                </label>
+
+                <select
+                  value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                  style={{
+                    width: "160px",
+                    height: "48px",
+                    borderRadius: "12px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.navy,
                     fontSize: "17px",
                     fontWeight: 900,
-                    marginBottom: "12px",
+                    padding: "0 12px",
+                    outline: "none",
+                  }}
+                >
+                  <option value="5">5</option>
+                  <option value="4">4</option>
+                  <option value="3">3</option>
+                  <option value="2">2</option>
+                  <option value="1">1</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: "18px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    color: COLORS.navy,
+                    fontSize: "16px",
+                    fontWeight: 900,
+                    marginBottom: "8px",
                   }}
                 >
                   コメント
                 </label>
 
                 <textarea
-                  id="review-comment"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="この問題の良さ、難しさ、解法の見どころなどを書いてください。"
                   rows={5}
+                  placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
                   style={{
                     width: "100%",
                     resize: "vertical",
@@ -883,38 +754,42 @@ export default function ProblemDetailPage() {
                     backgroundColor: COLORS.surface,
                     color: COLORS.text,
                     fontSize: "17px",
-                    lineHeight: 1.7,
+                    lineHeight: 1.8,
                     padding: "16px 18px",
                     outline: "none",
                   }}
                 />
               </div>
 
-              {submitMessage && (
-                <p
+              {(errorMessage || successMessage) && (
+                <div
                   style={{
-                    margin: "16px 0 0",
-                    color: submitMessage.includes("失敗") ? COLORS.danger : COLORS.teal,
+                    marginBottom: "18px",
+                    borderRadius: "14px",
+                    padding: "14px 16px",
+                    backgroundColor: errorMessage ? "#FEF2F2" : COLORS.softYellow,
+                    border: `1px solid ${errorMessage ? "#FCA5A5" : COLORS.line}`,
+                    color: errorMessage ? COLORS.danger : COLORS.success,
                     fontSize: "15px",
-                    fontWeight: 800,
+                    fontWeight: 900,
                   }}
                 >
-                  {submitMessage}
-                </p>
+                  {errorMessage || successMessage}
+                </div>
               )}
 
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmitReview}
                 disabled={isSubmitting}
                 style={{
-                  marginTop: "24px",
                   width: "100%",
-                  minHeight: "64px",
+                  minHeight: "62px",
                   border: "none",
-                  borderRadius: "16px",
+                  borderRadius: "14px",
                   backgroundColor: COLORS.navy,
                   color: "#FFFFFF",
-                  fontSize: "21px",
+                  fontSize: "20px",
                   fontWeight: 900,
                   cursor: isSubmitting ? "not-allowed" : "pointer",
                   opacity: isSubmitting ? 0.7 : 1,
@@ -922,40 +797,28 @@ export default function ProblemDetailPage() {
               >
                 {isSubmitting ? "投稿中..." : "レビューを投稿する"}
               </button>
-            </form>
+            </>
           ) : (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "22px",
-                flexWrap: "wrap",
+                marginTop: "18px",
+                backgroundColor: COLORS.surface,
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: "18px",
+                padding: "24px",
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    color: COLORS.navy,
-                    fontSize: "26px",
-                    fontWeight: 900,
-                  }}
-                >
-                  レビューを書くにはログインが必要です
-                </h2>
-
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: COLORS.slate,
-                    fontSize: "16px",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  ログインすると、この問題に評価とコメントを投稿できます。
-                </p>
-              </div>
+              <p
+                style={{
+                  margin: 0,
+                  color: COLORS.slate,
+                  fontSize: "16px",
+                  lineHeight: 1.8,
+                  fontWeight: 700,
+                }}
+              >
+                レビューを書くにはログインが必要です。
+              </p>
 
               <Link
                 href="/login"
@@ -963,14 +826,15 @@ export default function ProblemDetailPage() {
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  minHeight: "54px",
-                  padding: "0 24px",
+                  minHeight: "50px",
+                  padding: "0 20px",
+                  marginTop: "18px",
                   borderRadius: "14px",
                   backgroundColor: COLORS.navy,
                   color: "#FFFFFF",
+                  textDecoration: "none",
                   fontSize: "16px",
                   fontWeight: 900,
-                  textDecoration: "none",
                 }}
               >
                 ログイン / 新規登録
@@ -979,9 +843,6 @@ export default function ProblemDetailPage() {
           )}
         </section>
 
-        {/* =====================================================
-          レビュー一覧
-        ===================================================== */}
         <section>
           <div
             style={{
@@ -990,7 +851,7 @@ export default function ProblemDetailPage() {
               justifyContent: "space-between",
               gap: "16px",
               flexWrap: "wrap",
-              marginBottom: "24px",
+              marginBottom: "22px",
             }}
           >
             <div>
@@ -998,7 +859,7 @@ export default function ProblemDetailPage() {
                 style={{
                   margin: 0,
                   color: COLORS.navy,
-                  fontSize: "32px",
+                  fontSize: "30px",
                   fontWeight: 900,
                 }}
               >
@@ -1009,48 +870,41 @@ export default function ProblemDetailPage() {
                 style={{
                   margin: "8px 0 0",
                   color: COLORS.slate,
-                  fontSize: "16px",
+                  fontSize: "15px",
                   fontWeight: 700,
                 }}
               >
                 {reviews.length}件のレビュー
               </p>
             </div>
-
-            <RatingSummary average={average} count={reviews.length} />
           </div>
 
-          {sortedReviews.length === 0 ? (
+          {reviews.length === 0 ? (
             <div
               style={{
                 backgroundColor: COLORS.surface,
                 border: `1px solid ${COLORS.line}`,
                 borderRadius: "22px",
-                padding: "32px",
+                padding: "30px",
                 color: COLORS.muted,
-                fontSize: "17px",
+                fontSize: "16px",
                 lineHeight: 1.8,
                 boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
               }}
             >
-              まだレビューはありません。最初のレビューを投稿してみましょう。
+              まだレビューはありません。最初のレビューを書いてみましょう。
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gap: "22px",
-              }}
-            >
-              {sortedReviews.map((review) => (
+            <div style={{ display: "grid", gap: "18px" }}>
+              {reviews.map((review) => (
                 <article
                   key={review.id}
                   style={{
                     backgroundColor: COLORS.surface,
                     border: `1px solid ${COLORS.line}`,
-                    borderRadius: "22px",
+                    borderRadius: "20px",
+                    padding: "24px 26px",
                     boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-                    padding: "28px 30px",
                   }}
                 >
                   <div
@@ -1058,32 +912,33 @@ export default function ProblemDetailPage() {
                       display: "flex",
                       alignItems: "flex-start",
                       justifyContent: "space-between",
-                      gap: "18px",
+                      gap: "16px",
                       flexWrap: "wrap",
                     }}
                   >
-                    <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "14px",
+                      }}
+                    >
+                      {review.user_id && (
+                        <UserMiniBadge userId={review.user_id} size="sm" showEmail={false} />
+                      )}
+
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
-                          color: COLORS.slate,
-                          fontSize: "15px",
-                          fontWeight: 800,
                         }}
                       >
-                        <UserIcon size={20} />
-                        <span>{review.username ?? "匿名ユーザー"}</span>
-                      </div>
-
-                      <div style={{ marginTop: "12px" }}>
-                        <StarRating value={review.rating} size={19} />
+                        <StarRating value={review.rating} size={20} />
                         <span
                           style={{
-                            marginLeft: "10px",
                             color: COLORS.navy,
-                            fontSize: "18px",
+                            fontSize: "20px",
                             fontWeight: 900,
                           }}
                         >
@@ -1107,10 +962,10 @@ export default function ProblemDetailPage() {
                   {review.comment ? (
                     <p
                       style={{
-                        margin: "20px 0 0",
+                        margin: "18px 0 0",
                         color: COLORS.text,
-                        fontSize: "18px",
-                        lineHeight: 1.85,
+                        fontSize: "17px",
+                        lineHeight: 1.8,
                         whiteSpace: "pre-wrap",
                       }}
                     >
@@ -1119,9 +974,9 @@ export default function ProblemDetailPage() {
                   ) : (
                     <p
                       style={{
-                        margin: "20px 0 0",
+                        margin: "18px 0 0",
                         color: COLORS.muted,
-                        fontSize: "16px",
+                        fontSize: "15px",
                         lineHeight: 1.8,
                       }}
                     >

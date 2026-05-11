@@ -1,7 +1,7 @@
 "use client"
 
 import type { FormEvent } from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
@@ -38,12 +38,7 @@ const COLORS = {
 function BackIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M19 12H5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path
         d="M12 19l-7-7 7-7"
         stroke="currentColor"
@@ -58,18 +53,8 @@ function BackIcon({ size = 22 }: { size?: number }) {
 function PlusIcon({ size = 21 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 5v14"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 12h14"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
+      <path d="M12 5v14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -84,11 +69,33 @@ function TagIcon({ size = 21 }: { size?: number }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path
-        d="M7.5 7.5h.01"
+      <path d="M7.5 7.5h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ImageIcon({ size = 21 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
         stroke="currentColor"
-        strokeWidth="3"
+        strokeWidth="2"
+      />
+      <path
+        d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
+        fill="currentColor"
+      />
+      <path
+        d="M21 16l-5.2-5.2a2 2 0 0 0-2.8 0L5 18"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )
@@ -154,8 +161,48 @@ function InlineCode({ children }: { children: string }) {
   )
 }
 
+function FormulaButton({
+  label,
+  onClick,
+  disabled = false,
+  icon,
+}: {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  icon?: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        height: "38px",
+        padding: "0 13px",
+        borderRadius: "999px",
+        border: `1px solid ${COLORS.lineStrong}`,
+        backgroundColor: COLORS.surface,
+        color: disabled ? COLORS.muted : COLORS.navy,
+        fontSize: "14px",
+        fontWeight: 900,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
 export default function NewProblemPage() {
   const router = useRouter()
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const imageInputRef = useRef<HTMLInputElement | null>(null)
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
@@ -164,6 +211,7 @@ export default function NewProblemPage() {
   const [newTagName, setNewTagName] = useState("")
   const [suggestions, setSuggestions] = useState<Tag[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
   const [editorMode, setEditorMode] = useState<"write" | "preview">("write")
@@ -252,6 +300,107 @@ export default function NewProblemPage() {
     setSelectedTags((prev) => [...prev, createdTag.id])
     setNewTagName("")
     setSuggestions([])
+  }
+
+  /* ---------------------------------------------------------
+    本文へのテンプレート挿入
+  --------------------------------------------------------- */
+  function insertTemplate(template: string, cursorOffset?: number) {
+    setEditorMode("write")
+
+    const textarea = textareaRef.current
+    const start = textarea?.selectionStart ?? content.length
+    const end = textarea?.selectionEnd ?? content.length
+
+    const before = content.slice(0, start)
+    const after = content.slice(end)
+    const nextContent = `${before}${template}${after}`
+
+    setContent(nextContent)
+
+    const nextCursorPosition = start + (cursorOffset ?? template.length)
+
+    window.setTimeout(() => {
+      const currentTextarea = textareaRef.current
+      if (!currentTextarea) return
+
+      currentTextarea.focus()
+      currentTextarea.setSelectionRange(nextCursorPosition, nextCursorPosition)
+    }, 0)
+  }
+
+  function insertInlineFormula(formula: string, cursorOffset?: number) {
+    insertTemplate(`$ ${formula} $`, cursorOffset)
+  }
+
+  function insertDisplayFormula(formula: string, cursorOffset?: number) {
+    const template = `\n$$\n${formula}\n$$\n`
+    insertTemplate(template, cursorOffset)
+  }
+
+  /* ---------------------------------------------------------
+    画像アップロード
+  --------------------------------------------------------- */
+  async function handleImageUpload(file: File) {
+    setErrorMessage("")
+    setMessage("")
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("画像ファイルを選択してください。")
+      return
+    }
+
+    const maxSize = 5 * 1024 * 1024
+
+    if (file.size > maxSize) {
+      setErrorMessage("画像サイズは5MB以下にしてください。")
+      return
+    }
+
+    setIsUploadingImage(true)
+
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !userData.user) {
+      setErrorMessage("画像をアップロードするにはログインが必要です。")
+      setIsUploadingImage(false)
+      return
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "png"
+    const allowedExtensions = ["jpg", "jpeg", "png", "webp", "gif"]
+
+    if (!allowedExtensions.includes(extension)) {
+      setErrorMessage("アップロードできる画像は jpg / jpeg / png / webp / gif です。")
+      setIsUploadingImage(false)
+      return
+    }
+
+    const filePath = `${userData.user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`
+
+    const { error: uploadError } = await supabase.storage
+      .from("problem-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error("画像アップロードエラー:", uploadError.message)
+      setErrorMessage(`画像アップロードに失敗しました：${uploadError.message}`)
+      setIsUploadingImage(false)
+      return
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("problem-images")
+      .getPublicUrl(filePath)
+
+    const imageMarkdown = `\n\n![画像](${publicUrlData.publicUrl})\n\n`
+
+    insertTemplate(imageMarkdown)
+    setMessage("画像を本文に挿入しました。プレビューで確認できます。")
+    setIsUploadingImage(false)
   }
 
   /* ---------------------------------------------------------
@@ -431,6 +580,21 @@ export default function NewProblemPage() {
           </p>
         </header>
 
+        {/* hidden image input */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+
+            await handleImageUpload(file)
+            e.target.value = ""
+          }}
+        />
+
         {/* =====================================================
           投稿フォーム
         ===================================================== */}
@@ -470,13 +634,168 @@ export default function NewProblemPage() {
             </div>
 
             {/* =====================================================
-              問題内容：入力 / プレビュー対応
+              問題内容：入力 / プレビュー / 数式テンプレート / 画像
             ===================================================== */}
             <div>
               <FieldLabel
                 title="問題内容"
-                description="文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$ で囲んでください。投稿前にプレビューで確認できます。"
+                description="文章はそのまま入力できます。数式・画像も本文に挿入できます。投稿前にプレビューで確認できます。"
               />
+
+              <div
+                style={{
+                  backgroundColor: COLORS.tealPanel,
+                  border: `1px solid #B8DCD5`,
+                  borderLeft: `5px solid ${COLORS.teal}`,
+                  borderRadius: "18px",
+                  padding: "18px 20px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.navy,
+                        fontSize: "16px",
+                        fontWeight: 900,
+                      }}
+                    >
+                      入力補助
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "5px 0 0",
+                        color: COLORS.slate,
+                        fontSize: "14px",
+                        lineHeight: 1.6,
+                        fontWeight: 600,
+                      }}
+                    >
+                      数式や画像を、本文のカーソル位置に挿入できます。長い数式や解説はPrismで下書きして貼り付けるのもおすすめです。
+                    </p>
+                  </div>
+
+                  <a
+                    href="https://prism.openai.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: "38px",
+                      padding: "0 14px",
+                      borderRadius: "999px",
+                      backgroundColor: COLORS.navy,
+                      color: "#FFFFFF",
+                      textDecoration: "none",
+                      fontSize: "14px",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Prismで下書き
+                  </a>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "9px",
+                  }}
+                >
+                  <FormulaButton
+                    label={isUploadingImage ? "画像アップロード中..." : "画像を追加"}
+                    disabled={isUploadingImage}
+                    icon={<ImageIcon size={17} />}
+                    onClick={() => imageInputRef.current?.click()}
+                  />
+
+                  <FormulaButton
+                    label="分数"
+                    onClick={() => insertInlineFormula(String.raw`\frac{a}{b}`, 4)}
+                  />
+
+                  <FormulaButton
+                    label="平方根"
+                    onClick={() => insertInlineFormula(String.raw`\sqrt{x}`, 8)}
+                  />
+
+                  <FormulaButton
+                    label="指数"
+                    onClick={() => insertInlineFormula(String.raw`x^{2}`, 5)}
+                  />
+
+                  <FormulaButton
+                    label="添字"
+                    onClick={() => insertInlineFormula(String.raw`a_{n}`, 5)}
+                  />
+
+                  <FormulaButton
+                    label="積分"
+                    onClick={() => insertDisplayFormula(String.raw`\int_0^1 x^2 dx`, 8)}
+                  />
+
+                  <FormulaButton
+                    label="Σ"
+                    onClick={() =>
+                      insertDisplayFormula(String.raw`\sum_{k=1}^{n} k = \frac{n(n+1)}{2}`, 12)
+                    }
+                  />
+
+                  <FormulaButton
+                    label="場合分け"
+                    onClick={() =>
+                      insertDisplayFormula(
+                        String.raw`f(x)=
+\begin{cases}
+x^2 & (x \ge 0) \\
+-x & (x < 0)
+\end{cases}`,
+                        9
+                      )
+                    }
+                  />
+
+                  <FormulaButton
+                    label="=をそろえる"
+                    onClick={() =>
+                      insertDisplayFormula(
+                        String.raw`\begin{array}{rcl}
+a &=& b + c \\
+  &=& d
+\end{array}`,
+                        20
+                      )
+                    }
+                  />
+
+                  <FormulaButton
+                    label="行列"
+                    onClick={() =>
+                      insertDisplayFormula(
+                        String.raw`\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}`,
+                        16
+                      )
+                    }
+                  />
+                </div>
+              </div>
 
               <div
                 style={{
@@ -529,11 +848,14 @@ export default function NewProblemPage() {
 
               {editorMode === "write" ? (
                 <textarea
+                  ref={textareaRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder={`ここに問題文を入力してください。
 
 通常の文章はそのまま入力できます。
+
+画像は「画像を追加」ボタンから挿入できます。
 
 インライン数式：
 $ \\frac{1}{2} $
@@ -541,6 +863,14 @@ $ \\frac{1}{2} $
 表示数式：
 $$
 \\int_0^1 x^2 dx
+$$
+
+= をそろえる例：
+$$
+\\begin{array}{rcl}
+a &=& b + c \\\\
+  &=& d
+\\end{array}
 $$
 `}
                   rows={12}
@@ -593,7 +923,9 @@ $$
                   fontWeight: 600,
                 }}
               >
-                <span>インライン数式：</span>{" "}
+                <span>画像：</span>{" "}
+                <InlineCode>{String.raw`![画像](URL)`}</InlineCode>{" "}
+                <span> / インライン数式：</span>{" "}
                 <InlineCode>{String.raw`$ \frac{1}{2} $`}</InlineCode>{" "}
                 <span> / 表示数式：</span>{" "}
                 <InlineCode>{String.raw`$$ \int_0^1 x^2 dx $$`}</InlineCode>
@@ -889,7 +1221,7 @@ $$
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploadingImage}
             style={{
               width: "100%",
               minHeight: "72px",
@@ -899,12 +1231,12 @@ $$
               color: "#FFFFFF",
               fontSize: "24px",
               fontWeight: 900,
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting || isUploadingImage ? "not-allowed" : "pointer",
+              opacity: isSubmitting || isUploadingImage ? 0.7 : 1,
               boxShadow: "0 4px 14px rgba(30, 58, 95, 0.14)",
             }}
           >
-            {isSubmitting ? "投稿中..." : "投稿する"}
+            {isSubmitting ? "投稿中..." : isUploadingImage ? "画像アップロード中..." : "投稿する"}
           </button>
         </form>
       </div>

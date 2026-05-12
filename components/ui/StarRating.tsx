@@ -1,3 +1,4 @@
+/*app/components/ui/StarRating.tsx*/
 "use client"
 
 import { COLORS } from "@/components/ui/designTokens"

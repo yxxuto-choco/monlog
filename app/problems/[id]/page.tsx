@@ -6,33 +6,13 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import UserMiniBadge from "@/components/UserMiniBadge"
+import LatexTemplateSelector from "@/components/LatexTemplateSelector"
+import PageShell from "@/components/ui/PageShell"
+import SectionCard from "@/components/ui/SectionCard"
+import MessageBox from "@/components/ui/MessageBox"
+import StarRating from "@/components/ui/StarRating"
+import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
-/* =========================================================
-  問ログ Design System
-========================================================= */
-const COLORS = {
-  paper: "#FAF7F0",
-  surface: "#FFFFFF",
-  navy: "#1E3A5F",
-  text: "#1F2937",
-  muted: "#64748B",
-  slate: "#526984",
-  line: "#D8DDD6",
-  lineStrong: "#C9D2CD",
-  teal: "#2A9D8F",
-  tealPanel: "#E3F1EE",
-  tagBg: "#E2F1EE",
-  tagText: "#158B80",
-  star: "#F4A261",
-  starEmpty: "#D7D3C8",
-  danger: "#DC2626",
-  success: "#2A9D8F",
-  softYellow: "#FBF8EF",
-}
-
-/* =========================================================
-  型定義
-========================================================= */
 type TagRow = {
   name: string | null
 }
@@ -76,9 +56,6 @@ type Review = {
   user_id?: string | null
 }
 
-/* =========================================================
-  アイコン
-========================================================= */
 function BackIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -108,64 +85,36 @@ function CommentIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-/* =========================================================
-  星評価
-========================================================= */
-function StarRating({ value, size = 22 }: { value: number; size?: number }) {
+function EditIcon({ size = 18 }: { size?: number }) {
   return (
-    <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
-
-        return (
-          <span
-            key={star}
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: `${size}px`,
-              height: `${size}px`,
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width={size}
-              height={size}
-              style={{ color: COLORS.starEmpty }}
-            >
-              <path
-                fill="currentColor"
-                d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-              />
-            </svg>
-
-            <span
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: `${fillPercent}%`,
-                height: `${size}px`,
-                overflow: "hidden",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width={size} height={size} style={{ color: COLORS.star }}>
-                <path
-                  fill="currentColor"
-                  d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-                />
-              </svg>
-            </span>
-          </span>
-        )
-      })}
-    </span>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
-/* =========================================================
-  補助関数
-========================================================= */
+function TrashIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 6V4h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M6 6l1 15h10l1-15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
   return (problemTags ?? [])
     .map((pt) => {
@@ -186,9 +135,115 @@ function getProblemId(paramsId: string | string[] | undefined) {
   return paramsId ?? ""
 }
 
-/* =========================================================
-  詳細ページ
-========================================================= */
+function ActionButton({
+  children,
+  onClick,
+  variant = "secondary",
+  disabled = false,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  variant?: "primary" | "secondary" | "danger"
+  disabled?: boolean
+}) {
+  const isPrimary = variant === "primary"
+  const isDanger = variant === "danger"
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "7px",
+        minHeight: "42px",
+        padding: "0 15px",
+        borderRadius: RADII.md,
+        border: `1px solid ${isPrimary ? COLORS.navy : isDanger ? "#FCA5A5" : COLORS.lineStrong}`,
+        backgroundColor: isPrimary ? COLORS.navy : isDanger ? "#FEF2F2" : COLORS.surface,
+        color: isPrimary ? "#FFFFFF" : isDanger ? COLORS.danger : COLORS.navy,
+        fontSize: "14px",
+        fontWeight: 900,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: "40px",
+        padding: "0 18px",
+        borderRadius: RADII.pill,
+        border: `1px solid ${active ? COLORS.teal : COLORS.lineStrong}`,
+        backgroundColor: active ? COLORS.teal : COLORS.surface,
+        color: active ? "#FFFFFF" : COLORS.navy,
+        fontSize: "15px",
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function LatexHelpChips() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "10px",
+        flexWrap: "wrap",
+        marginTop: "12px",
+        color: COLORS.slate,
+        fontSize: "13px",
+        fontWeight: 800,
+      }}
+    >
+      <span
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: RADII.sm,
+          backgroundColor: COLORS.softYellow,
+          padding: "5px 9px",
+        }}
+      >
+        インライン数式：{String.raw`$ \frac{1}{2} $`}
+      </span>
+
+      <span
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: RADII.sm,
+          backgroundColor: COLORS.softYellow,
+          padding: "5px 9px",
+        }}
+      >
+        表示数式：{String.raw`$$ \int_0^1 x^2 dx $$`}
+      </span>
+    </div>
+  )
+}
+
 export default function ProblemDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -206,7 +261,46 @@ export default function ProblemDetailPage() {
 
   const [rating, setRating] = useState("5")
   const [comment, setComment] = useState("")
+  const [commentMode, setCommentMode] = useState<"input" | "preview">("input")
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const [isEditingProblem, setIsEditingProblem] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editContent, setEditContent] = useState("")
+  const [editContentMode, setEditContentMode] = useState<"input" | "preview">("input")
+  const [isUpdatingProblem, setIsUpdatingProblem] = useState(false)
+  const [isDeletingProblem, setIsDeletingProblem] = useState(false)
+
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null)
+  const [editReviewRating, setEditReviewRating] = useState("5")
+  const [editReviewComment, setEditReviewComment] = useState("")
+  const [editReviewMode, setEditReviewMode] = useState<"input" | "preview">("input")
+  const [isUpdatingReviewId, setIsUpdatingReviewId] = useState<string | null>(null)
+  const [isDeletingReviewId, setIsDeletingReviewId] = useState<string | null>(null)
+
+  function insertCommentLatexTemplate(latex: string) {
+    setComment((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setCommentMode("input")
+  }
+
+  function insertEditReviewLatexTemplate(latex: string) {
+    setEditReviewComment((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setEditReviewMode("input")
+  }
+
+  function insertEditProblemLatexTemplate(latex: string) {
+    setEditContent((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setEditContentMode("input")
+  }
 
   async function loadUserAndProfile() {
     const { data } = await supabase.auth.getUser()
@@ -291,6 +385,9 @@ export default function ProblemDetailPage() {
       tags: extractTagNames(row.problem_tags),
     })
 
+    setEditTitle(row.title)
+    setEditContent(row.content ?? "")
+
     const nextReviews: Review[] = (row.reviews ?? [])
       .map((review) => ({
         id: review.id,
@@ -330,6 +427,102 @@ export default function ProblemDetailPage() {
   }, [reviews])
 
   const roundedAverage = Math.floor(averageRating * 10) / 10
+  const isProblemOwner = Boolean(userId && problem?.user_id === userId)
+
+  async function handleUpdateProblem() {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!problem || !userId) return
+
+    if (!editTitle.trim()) {
+      setErrorMessage("タイトルを入力してください。")
+      return
+    }
+
+    if (!editContent.trim()) {
+      setErrorMessage("本文を入力してください。")
+      return
+    }
+
+    setIsUpdatingProblem(true)
+
+    const { error } = await supabase
+      .from("problems")
+      .update({
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+      .eq("id", problem.id)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("問題更新エラー:", error.message)
+      setErrorMessage(`問題の更新に失敗しました：${error.message}`)
+      setIsUpdatingProblem(false)
+      return
+    }
+
+    setSuccessMessage("問題を更新しました。")
+    setIsEditingProblem(false)
+    setIsUpdatingProblem(false)
+
+    await fetchProblem()
+  }
+
+  async function handleDeleteProblem() {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!problem || !userId) return
+
+    const ok = window.confirm(
+      "この問題を削除します。レビューやタグ紐付けも削除されます。よろしいですか？"
+    )
+
+    if (!ok) return
+
+    setIsDeletingProblem(true)
+
+    const { error: reviewDeleteError } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (reviewDeleteError) {
+      console.error("レビュー削除エラー:", reviewDeleteError.message)
+      setErrorMessage(`関連レビューの削除に失敗しました：${reviewDeleteError.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    const { error: tagDeleteError } = await supabase
+      .from("problem_tags")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (tagDeleteError) {
+      console.error("タグ紐付け削除エラー:", tagDeleteError.message)
+      setErrorMessage(`タグ紐付けの削除に失敗しました：${tagDeleteError.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from("problems")
+      .delete()
+      .eq("id", problem.id)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("問題削除エラー:", error.message)
+      setErrorMessage(`問題の削除に失敗しました：${error.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    router.push("/")
+  }
 
   async function handleSubmitReview() {
     setErrorMessage("")
@@ -379,246 +572,483 @@ export default function ProblemDetailPage() {
 
     setComment("")
     setRating("5")
+    setCommentMode("input")
     setSuccessMessage("レビューを投稿しました。")
     setIsSubmitting(false)
 
     await fetchProblem()
   }
 
+  function startEditReview(review: Review) {
+    setEditingReviewId(review.id)
+    setEditReviewRating(String(Math.round(review.rating)))
+    setEditReviewComment(review.comment ?? "")
+    setEditReviewMode("input")
+  }
+
+  async function handleUpdateReview(reviewId: string) {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!userId) return
+
+    const parsedRating = Number(editReviewRating)
+
+    if (
+      !Number.isFinite(parsedRating) ||
+      !Number.isInteger(parsedRating) ||
+      parsedRating < 1 ||
+      parsedRating > 5
+    ) {
+      setErrorMessage("評価は1〜5の整数で選択してください。")
+      return
+    }
+
+    if (!editReviewComment.trim()) {
+      setErrorMessage("コメントを入力してください。")
+      return
+    }
+
+    setIsUpdatingReviewId(reviewId)
+
+    const { error } = await supabase
+      .from("reviews")
+      .update({
+        rating: parsedRating,
+        comment: editReviewComment.trim(),
+      })
+      .eq("id", reviewId)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("レビュー更新エラー:", error.message)
+      setErrorMessage(`レビューの更新に失敗しました：${error.message}`)
+      setIsUpdatingReviewId(null)
+      return
+    }
+
+    setSuccessMessage("レビューを更新しました。")
+    setEditingReviewId(null)
+    setIsUpdatingReviewId(null)
+
+    await fetchProblem()
+  }
+
+  async function handleDeleteReview(reviewId: string) {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!userId) return
+
+    const ok = window.confirm("このレビューを削除します。よろしいですか？")
+
+    if (!ok) return
+
+    setIsDeletingReviewId(reviewId)
+
+    const { error } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", reviewId)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("レビュー削除エラー:", error.message)
+      setErrorMessage(`レビューの削除に失敗しました：${error.message}`)
+      setIsDeletingReviewId(null)
+      return
+    }
+
+    setSuccessMessage("レビューを削除しました。")
+    setIsDeletingReviewId(null)
+
+    await fetchProblem()
+  }
+
   if (isLoading) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          padding: "48px 0",
-        }}
-      >
-        <div style={{ width: "min(980px, calc(100vw - 48px))", margin: "0 auto" }}>
-          <div
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "22px",
-              padding: "32px",
-              color: COLORS.muted,
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            }}
-          >
-            読み込み中...
-          </div>
-        </div>
-      </main>
+      <PageShell>
+        <SectionCard>読み込み中...</SectionCard>
+      </PageShell>
     )
   }
 
   if (!problem) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          padding: "48px 0",
-        }}
-      >
-        <div style={{ width: "min(980px, calc(100vw - 48px))", margin: "0 auto" }}>
-          <Link
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "17px",
-              fontWeight: 900,
-              textDecoration: "none",
-              marginBottom: "28px",
-            }}
-          >
-            <BackIcon />
-            一覧へ戻る
-          </Link>
+      <PageShell>
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            marginBottom: "28px",
+          }}
+        >
+          <BackIcon />
+          一覧へ戻る
+        </Link>
 
-          <div
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "22px",
-              padding: "32px",
-              color: COLORS.danger,
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-              fontWeight: 900,
-            }}
-          >
-            {errorMessage || "問題が見つかりませんでした。"}
-          </div>
-        </div>
-      </main>
+        <MessageBox type="error">{errorMessage || "問題が見つかりませんでした。"}</MessageBox>
+      </PageShell>
     )
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: COLORS.paper,
-        color: COLORS.text,
-        padding: "32px 0 72px",
-      }}
-    >
-      <div
+    <PageShell>
+      <nav
         style={{
-          width: "min(980px, calc(100vw - 48px))",
-          margin: "0 auto",
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
-        <nav
+        <button
+          type="button"
+          onClick={() => router.back()}
           style={{
-            marginBottom: "28px",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            flexWrap: "wrap",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
           }}
         >
-          <button
-            type="button"
-            onClick={() => router.back()}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "17px",
-              fontWeight: 900,
-              textDecoration: "none",
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              cursor: "pointer",
-            }}
-          >
-            <BackIcon />
-            戻る
-          </button>
+          <BackIcon />
+          戻る
+        </button>
 
-          <div
-            style={{
-              color: COLORS.slate,
-              fontSize: "15px",
-              fontWeight: 700,
-            }}
-          >
-            問ログ / 問題詳細
-          </div>
-        </nav>
-
-        <section
+        <div
           style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "26px",
-            padding: "36px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
-            marginBottom: "28px",
+            color: COLORS.slate,
+            fontSize: "15px",
+            fontWeight: 700,
           }}
         >
-          {problem.user_id && (
-            <div style={{ marginBottom: "24px" }}>
-              <UserMiniBadge userId={problem.user_id} size="md" showEmail={false} />
-            </div>
-          )}
+          問ログ / 問題詳細
+        </div>
+      </nav>
 
-          <h1
-            style={{
-              margin: 0,
-              color: COLORS.navy,
-              fontSize: "40px",
-              lineHeight: 1.35,
-              fontWeight: 900,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            {problem.title}
-          </h1>
+      {(errorMessage || successMessage) && (
+        <div style={{ marginBottom: "22px" }}>
+          {errorMessage && <MessageBox type="error">{errorMessage}</MessageBox>}
+          {successMessage && <MessageBox type="success">{successMessage}</MessageBox>}
+        </div>
+      )}
 
-          <div
-            style={{
-              marginTop: "22px",
-              display: "flex",
-              alignItems: "center",
-              gap: "18px",
-              flexWrap: "wrap",
-              color: COLORS.slate,
-              fontSize: "16px",
-              fontWeight: 700,
-            }}
-          >
-            <span>投稿日: {formatDate(problem.created_at)}</span>
-
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <StarRating value={averageRating} size={22} />
-              <strong style={{ color: COLORS.navy, fontSize: "22px" }}>
-                {roundedAverage.toFixed(1)}
-              </strong>
-            </span>
-
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "7px",
-              }}
-            >
-              <CommentIcon size={21} />
-              {reviews.length}件
-            </span>
+      <SectionCard
+        style={{
+          padding: "36px",
+          borderRadius: RADII.xxl,
+          boxShadow: SHADOWS.cardStrong,
+          marginBottom: "28px",
+        }}
+      >
+        {problem.user_id && (
+          <div style={{ marginBottom: "24px" }}>
+            <UserMiniBadge userId={problem.user_id} size="md" showEmail={false} />
           </div>
+        )}
 
-          {problem.tags.length > 0 && (
+        {isEditingProblem ? (
+          <div>
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                タイトル
+              </label>
+
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "52px",
+                  borderRadius: RADII.md,
+                  border: `1px solid ${COLORS.lineStrong}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.text,
+                  fontSize: "17px",
+                  fontWeight: 800,
+                  padding: "0 16px",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                問題内容
+              </label>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  lineHeight: 1.7,
+                }}
+              >
+                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                で囲んでください。保存前にプレビューで確認できます。
+              </p>
+
+              <LatexTemplateSelector onInsert={insertEditProblemLatexTemplate} />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "14px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <ModeButton
+                  active={editContentMode === "input"}
+                  onClick={() => setEditContentMode("input")}
+                >
+                  入力
+                </ModeButton>
+
+                <ModeButton
+                  active={editContentMode === "preview"}
+                  onClick={() => setEditContentMode("preview")}
+                >
+                  プレビュー
+                </ModeButton>
+              </div>
+
+              {editContentMode === "input" ? (
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    resize: "vertical",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    minHeight: "210px",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
+                  }}
+                >
+                  {editContent.trim() ? (
+                    <ProblemMarkdown content={editContent} />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.muted,
+                        fontSize: "15px",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      ここに問題内容のプレビューが表示されます。
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <LatexHelpChips />
+            </div>
+
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
                 gap: "10px",
-                marginTop: "24px",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
               }}
             >
-              {problem.tags.map((tag) => (
-                <Link
-                  key={tag}
-                  href={`/?q=${encodeURIComponent(tag)}`}
-                  style={{
-                    borderRadius: "999px",
-                    backgroundColor: COLORS.tagBg,
-                    color: COLORS.tagText,
-                    padding: "9px 18px",
-                    fontSize: "15px",
-                    fontWeight: 900,
-                    textDecoration: "none",
+              <ActionButton
+                onClick={() => {
+                  setIsEditingProblem(false)
+                  setEditTitle(problem.title)
+                  setEditContent(problem.content ?? "")
+                  setEditContentMode("input")
+                }}
+              >
+                キャンセル
+              </ActionButton>
+
+              <ActionButton
+                variant="primary"
+                onClick={handleUpdateProblem}
+                disabled={isUpdatingProblem}
+              >
+                {isUpdatingProblem ? "保存中..." : "保存する"}
+              </ActionButton>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "40px",
+                lineHeight: 1.35,
+                fontWeight: 900,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              {problem.title}
+            </h1>
+
+            <div
+              style={{
+                marginTop: "22px",
+                display: "flex",
+                alignItems: "center",
+                gap: "18px",
+                flexWrap: "wrap",
+                color: COLORS.slate,
+                fontSize: "16px",
+                fontWeight: 700,
+              }}
+            >
+              <span>投稿日: {formatDate(problem.created_at)}</span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <StarRating value={averageRating} size={22} />
+                <strong style={{ color: COLORS.navy, fontSize: "22px" }}>
+                  {roundedAverage.toFixed(1)}
+                </strong>
+              </span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "7px",
+                }}
+              >
+                <CommentIcon size={21} />
+                {reviews.length}件
+              </span>
+            </div>
+
+            {problem.tags.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                  marginTop: "24px",
+                }}
+              >
+                {problem.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/?q=${encodeURIComponent(tag)}`}
+                    style={{
+                      borderRadius: RADII.pill,
+                      backgroundColor: COLORS.tagBg,
+                      color: COLORS.tagText,
+                      padding: "9px 18px",
+                      fontSize: "15px",
+                      fontWeight: 900,
+                      textDecoration: "none",
+                    }}
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {isProblemOwner && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginTop: "26px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <ActionButton
+                  onClick={() => {
+                    setEditTitle(problem.title)
+                    setEditContent(problem.content ?? "")
+                    setEditContentMode("input")
+                    setIsEditingProblem(true)
                   }}
                 >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
+                  <EditIcon />
+                  問題を編集
+                </ActionButton>
 
-        <section
+                <ActionButton
+                  variant="danger"
+                  onClick={handleDeleteProblem}
+                  disabled={isDeletingProblem}
+                >
+                  <TrashIcon />
+                  {isDeletingProblem ? "削除中..." : "問題を削除"}
+                </ActionButton>
+              </div>
+            )}
+          </>
+        )}
+      </SectionCard>
+
+      {!isEditingProblem && (
+        <SectionCard
           style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "24px",
             padding: "34px 36px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
             marginBottom: "28px",
           }}
         >
@@ -647,100 +1077,135 @@ export default function ProblemDetailPage() {
               本文はまだ登録されていません。
             </p>
           )}
-        </section>
+        </SectionCard>
+      )}
 
-        <section
+      <SectionCard
+        variant="teal"
+        style={{
+          borderLeft: `6px solid ${COLORS.teal}`,
+          borderRadius: RADII.xl,
+          padding: "30px 34px",
+          marginBottom: "32px",
+        }}
+      >
+        <h2
           style={{
-            backgroundColor: COLORS.tealPanel,
-            border: "1px solid #B8DCD5",
-            borderLeft: `6px solid ${COLORS.teal}`,
-            borderRadius: "22px",
-            padding: "30px 34px",
-            marginBottom: "32px",
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "28px",
+            fontWeight: 900,
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              color: COLORS.navy,
-              fontSize: "28px",
-              fontWeight: 900,
-            }}
-          >
-            レビューを書く
-          </h2>
+          レビューを書く
+        </h2>
 
-          {userId ? (
-            <>
-              <div
+        {userId ? (
+          <>
+            <SectionCard
+              style={{
+                marginTop: "18px",
+                marginBottom: "22px",
+                padding: "16px 18px",
+                borderRadius: RADII.lg,
+                boxShadow: "none",
+              }}
+            >
+              <UserMiniBadge
+                userId={userId}
+                email={userEmail}
+                userName={userName}
+                size="md"
+                showEmail
+              />
+            </SectionCard>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
                 style={{
-                  marginTop: "18px",
-                  marginBottom: "22px",
-                  padding: "16px 18px",
-                  borderRadius: "18px",
-                  backgroundColor: COLORS.surface,
-                  border: `1px solid ${COLORS.line}`,
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
                 }}
               >
-                <UserMiniBadge
-                  userId={userId}
-                  email={userEmail}
-                  userName={userName}
-                  size="md"
-                  showEmail
-                />
+                評価
+              </label>
+
+              <select
+                value={rating}
+                onChange={(e) => setRating(e.target.value)}
+                style={{
+                  width: "160px",
+                  height: "48px",
+                  borderRadius: RADII.sm,
+                  border: `1px solid ${COLORS.lineStrong}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.navy,
+                  fontSize: "17px",
+                  fontWeight: 900,
+                  padding: "0 12px",
+                  outline: "none",
+                }}
+              >
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                コメント
+              </label>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  lineHeight: 1.7,
+                }}
+              >
+                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                で囲んでください。投稿前にプレビューで確認できます。
+              </p>
+
+              <LatexTemplateSelector onInsert={insertCommentLatexTemplate} />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "14px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <ModeButton active={commentMode === "input"} onClick={() => setCommentMode("input")}>
+                  入力
+                </ModeButton>
+
+                <ModeButton
+                  active={commentMode === "preview"}
+                  onClick={() => setCommentMode("preview")}
+                >
+                  プレビュー
+                </ModeButton>
               </div>
 
-              <div style={{ marginBottom: "18px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    color: COLORS.navy,
-                    fontSize: "16px",
-                    fontWeight: 900,
-                    marginBottom: "8px",
-                  }}
-                >
-                  評価
-                </label>
-
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                  style={{
-                    width: "160px",
-                    height: "48px",
-                    borderRadius: "12px",
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.navy,
-                    fontSize: "17px",
-                    fontWeight: 900,
-                    padding: "0 12px",
-                    outline: "none",
-                  }}
-                >
-                  <option value="5">5</option>
-                  <option value="4">4</option>
-                  <option value="3">3</option>
-                  <option value="2">2</option>
-                  <option value="1">1</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: "18px" }}>
-                <label
-                  style={{
-                    display: "block",
-                    color: COLORS.navy,
-                    fontSize: "16px",
-                    fontWeight: 900,
-                    marginBottom: "8px",
-                  }}
-                >
-                  コメント
-                </label>
-
+              {commentMode === "input" ? (
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
@@ -759,152 +1224,162 @@ export default function ProblemDetailPage() {
                     outline: "none",
                   }}
                 />
-              </div>
-
-              {(errorMessage || successMessage) && (
+              ) : (
                 <div
                   style={{
-                    marginBottom: "18px",
-                    borderRadius: "14px",
-                    padding: "14px 16px",
-                    backgroundColor: errorMessage ? "#FEF2F2" : COLORS.softYellow,
-                    border: `1px solid ${errorMessage ? "#FCA5A5" : COLORS.line}`,
-                    color: errorMessage ? COLORS.danger : COLORS.success,
-                    fontSize: "15px",
-                    fontWeight: 900,
+                    minHeight: "150px",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
                   }}
                 >
-                  {errorMessage || successMessage}
+                  {comment.trim() ? (
+                    <ProblemMarkdown content={comment} />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.muted,
+                        fontSize: "15px",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      ここにコメントのプレビューが表示されます。
+                    </p>
+                  )}
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={handleSubmitReview}
-                disabled={isSubmitting}
-                style={{
-                  width: "100%",
-                  minHeight: "62px",
-                  border: "none",
-                  borderRadius: "14px",
-                  backgroundColor: COLORS.navy,
-                  color: "#FFFFFF",
-                  fontSize: "20px",
-                  fontWeight: 900,
-                  cursor: isSubmitting ? "not-allowed" : "pointer",
-                  opacity: isSubmitting ? 0.7 : 1,
-                }}
-              >
-                {isSubmitting ? "投稿中..." : "レビューを投稿する"}
-              </button>
-            </>
-          ) : (
-            <div
+              <LatexHelpChips />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmitReview}
+              disabled={isSubmitting}
               style={{
-                marginTop: "18px",
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "18px",
-                padding: "24px",
+                width: "100%",
+                minHeight: "62px",
+                border: "none",
+                borderRadius: RADII.md,
+                backgroundColor: COLORS.navy,
+                color: "#FFFFFF",
+                fontSize: "20px",
+                fontWeight: 900,
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.7 : 1,
               }}
             >
-              <p
-                style={{
-                  margin: 0,
-                  color: COLORS.slate,
-                  fontSize: "16px",
-                  lineHeight: 1.8,
-                  fontWeight: 700,
-                }}
-              >
-                レビューを書くにはログインが必要です。
-              </p>
-
-              <Link
-                href="/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: "50px",
-                  padding: "0 20px",
-                  marginTop: "18px",
-                  borderRadius: "14px",
-                  backgroundColor: COLORS.navy,
-                  color: "#FFFFFF",
-                  textDecoration: "none",
-                  fontSize: "16px",
-                  fontWeight: 900,
-                }}
-              >
-                ログイン / 新規登録
-              </Link>
-            </div>
-          )}
-        </section>
-
-        <section>
-          <div
+              {isSubmitting ? "投稿中..." : "レビューを投稿する"}
+            </button>
+          </>
+        ) : (
+          <SectionCard
             style={{
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              marginBottom: "22px",
+              marginTop: "18px",
+              padding: "24px",
+              borderRadius: RADII.lg,
+              boxShadow: "none",
             }}
           >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  color: COLORS.navy,
-                  fontSize: "30px",
-                  fontWeight: 900,
-                }}
-              >
-                レビュー一覧
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "15px",
-                  fontWeight: 700,
-                }}
-              >
-                {reviews.length}件のレビュー
-              </p>
-            </div>
-          </div>
-
-          {reviews.length === 0 ? (
-            <div
+            <p
               style={{
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "22px",
-                padding: "30px",
-                color: COLORS.muted,
+                margin: 0,
+                color: COLORS.slate,
                 fontSize: "16px",
                 lineHeight: 1.8,
-                boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+                fontWeight: 700,
               }}
             >
-              まだレビューはありません。最初のレビューを書いてみましょう。
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: "18px" }}>
-              {reviews.map((review) => (
-                <article
+              レビューを書くにはログインが必要です。
+            </p>
+
+            <Link
+              href="/login"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "50px",
+                padding: "0 20px",
+                marginTop: "18px",
+                borderRadius: RADII.md,
+                backgroundColor: COLORS.navy,
+                color: "#FFFFFF",
+                textDecoration: "none",
+                fontSize: "16px",
+                fontWeight: 900,
+              }}
+            >
+              ログイン / 新規登録
+            </Link>
+          </SectionCard>
+        )}
+      </SectionCard>
+
+      <section>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "22px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "30px",
+                fontWeight: 900,
+              }}
+            >
+              レビュー一覧
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              {reviews.length}件のレビュー
+            </p>
+          </div>
+        </div>
+
+        {reviews.length === 0 ? (
+          <SectionCard
+            style={{
+              padding: "30px",
+              color: COLORS.muted,
+              fontSize: "16px",
+              lineHeight: 1.8,
+            }}
+          >
+            まだレビューはありません。最初のレビューを書いてみましょう。
+          </SectionCard>
+        ) : (
+          <div style={{ display: "grid", gap: "18px" }}>
+            {reviews.map((review) => {
+              const isReviewOwner = Boolean(userId && review.user_id === userId)
+              const isEditingThisReview = editingReviewId === review.id
+
+              return (
+                <SectionCard
                   key={review.id}
                   style={{
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${COLORS.line}`,
-                    borderRadius: "20px",
                     padding: "24px 26px",
-                    boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+                    borderRadius: "20px",
                   }}
                 >
                   <div
@@ -927,50 +1402,236 @@ export default function ProblemDetailPage() {
                         <UserMiniBadge userId={review.user_id} size="sm" showEmail={false} />
                       )}
 
+                      {!isEditingThisReview && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                          }}
+                        >
+                          <StarRating value={review.rating} size={20} />
+                          <span
+                            style={{
+                              color: COLORS.navy,
+                              fontSize: "20px",
+                              fontWeight: 900,
+                            }}
+                          >
+                            {review.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: 0,
+                          color: COLORS.muted,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {formatDate(review.created_at)}
+                      </p>
+
+                      {isReviewOwner && !isEditingThisReview && (
+                        <>
+                          <ActionButton onClick={() => startEditReview(review)}>
+                            <EditIcon />
+                            編集
+                          </ActionButton>
+
+                          <ActionButton
+                            variant="danger"
+                            onClick={() => handleDeleteReview(review.id)}
+                            disabled={isDeletingReviewId === review.id}
+                          >
+                            <TrashIcon />
+                            {isDeletingReviewId === review.id ? "削除中..." : "削除"}
+                          </ActionButton>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditingThisReview ? (
+                    <div style={{ marginTop: "20px" }}>
+                      <div style={{ marginBottom: "18px" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            color: COLORS.navy,
+                            fontSize: "16px",
+                            fontWeight: 900,
+                            marginBottom: "8px",
+                          }}
+                        >
+                          評価
+                        </label>
+
+                        <select
+                          value={editReviewRating}
+                          onChange={(e) => setEditReviewRating(e.target.value)}
+                          style={{
+                            width: "160px",
+                            height: "48px",
+                            borderRadius: RADII.sm,
+                            border: `1px solid ${COLORS.lineStrong}`,
+                            backgroundColor: COLORS.surface,
+                            color: COLORS.navy,
+                            fontSize: "17px",
+                            fontWeight: 900,
+                            padding: "0 12px",
+                            outline: "none",
+                          }}
+                        >
+                          <option value="5">5</option>
+                          <option value="4">4</option>
+                          <option value="3">3</option>
+                          <option value="2">2</option>
+                          <option value="1">1</option>
+                        </select>
+                      </div>
+
+                      <div style={{ marginBottom: "18px" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            color: COLORS.navy,
+                            fontSize: "16px",
+                            fontWeight: 900,
+                            marginBottom: "8px",
+                          }}
+                        >
+                          コメント
+                        </label>
+
+                        <LatexTemplateSelector onInsert={insertEditReviewLatexTemplate} />
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            marginBottom: "14px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <ModeButton
+                            active={editReviewMode === "input"}
+                            onClick={() => setEditReviewMode("input")}
+                          >
+                            入力
+                          </ModeButton>
+
+                          <ModeButton
+                            active={editReviewMode === "preview"}
+                            onClick={() => setEditReviewMode("preview")}
+                          >
+                            プレビュー
+                          </ModeButton>
+                        </div>
+
+                        {editReviewMode === "input" ? (
+                          <textarea
+                            value={editReviewComment}
+                            onChange={(e) => setEditReviewComment(e.target.value)}
+                            rows={5}
+                            placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
+                            style={{
+                              width: "100%",
+                              resize: "vertical",
+                              borderRadius: "16px",
+                              border: `1px solid ${COLORS.lineStrong}`,
+                              backgroundColor: COLORS.surface,
+                              color: COLORS.text,
+                              fontSize: "17px",
+                              lineHeight: 1.8,
+                              padding: "16px 18px",
+                              outline: "none",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              minHeight: "150px",
+                              borderRadius: "16px",
+                              border: `1px solid ${COLORS.lineStrong}`,
+                              backgroundColor: COLORS.surface,
+                              color: COLORS.text,
+                              fontSize: "17px",
+                              lineHeight: 1.8,
+                              padding: "16px 18px",
+                            }}
+                          >
+                            {editReviewComment.trim() ? (
+                              <ProblemMarkdown content={editReviewComment} />
+                            ) : (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: COLORS.muted,
+                                  fontSize: "15px",
+                                  lineHeight: 1.8,
+                                }}
+                              >
+                                ここにコメントのプレビューが表示されます。
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <LatexHelpChips />
+                      </div>
+
                       <div
                         style={{
                           display: "flex",
-                          alignItems: "center",
                           gap: "10px",
+                          flexWrap: "wrap",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        <StarRating value={review.rating} size={20} />
-                        <span
-                          style={{
-                            color: COLORS.navy,
-                            fontSize: "20px",
-                            fontWeight: 900,
+                        <ActionButton
+                          onClick={() => {
+                            setEditingReviewId(null)
+                            setEditReviewComment("")
+                            setEditReviewRating("5")
+                            setEditReviewMode("input")
                           }}
                         >
-                          {review.rating.toFixed(1)}
-                        </span>
+                          キャンセル
+                        </ActionButton>
+
+                        <ActionButton
+                          variant="primary"
+                          onClick={() => handleUpdateReview(review.id)}
+                          disabled={isUpdatingReviewId === review.id}
+                        >
+                          {isUpdatingReviewId === review.id ? "保存中..." : "保存する"}
+                        </ActionButton>
                       </div>
                     </div>
-
-                    <p
+                  ) : review.comment ? (
+                    <div
                       style={{
-                        margin: 0,
-                        color: COLORS.muted,
-                        fontSize: "14px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {formatDate(review.created_at)}
-                    </p>
-                  </div>
-
-                  {review.comment ? (
-                    <p
-                      style={{
-                        margin: "18px 0 0",
+                        marginTop: "18px",
                         color: COLORS.text,
                         fontSize: "17px",
                         lineHeight: 1.8,
-                        whiteSpace: "pre-wrap",
                       }}
                     >
-                      {review.comment}
-                    </p>
+                      <ProblemMarkdown content={review.comment} />
+                    </div>
                   ) : (
                     <p
                       style={{
@@ -983,12 +1644,12 @@ export default function ProblemDetailPage() {
                       コメントなし
                     </p>
                   )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
+                </SectionCard>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </PageShell>
   )
 }

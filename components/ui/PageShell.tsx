@@ -1,9 +1,11 @@
+/*app/components/ui/PageShell.tsx*/
 "use client"
 
+import type { ReactNode } from "react"
 import { COLORS, LAYOUT } from "@/components/ui/designTokens"
 
 type PageShellProps = {
-  children: React.ReactNode
+  children: ReactNode
   wide?: boolean
 }
 

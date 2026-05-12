@@ -4,28 +4,11 @@ import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import RandomPixelAvatar from "@/components/RandomPixelAvatar"
-
-/* =========================================================
-  問ログ Design System v1.5
-========================================================= */
-const COLORS = {
-  paper: "#FAF7F0",
-  surface: "#FFFFFF",
-  navy: "#1E3A5F",
-  text: "#1F2937",
-  muted: "#64748B",
-  slate: "#526984",
-  line: "#D8DDD6",
-  lineStrong: "#C9D2CD",
-  teal: "#2A9D8F",
-  tealPanel: "#E3F1EE",
-  tagBg: "#E2F1EE",
-  tagText: "#158B80",
-  star: "#F4A261",
-  starEmpty: "#D7D3C8",
-  danger: "#DC2626",
-  softYellow: "#FBF8EF",
-}
+import PageShell from "@/components/ui/PageShell"
+import SectionCard from "@/components/ui/SectionCard"
+import MessageBox from "@/components/ui/MessageBox"
+import StarRating from "@/components/ui/StarRating"
+import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 /* =========================================================
   型定義
@@ -127,61 +110,6 @@ function PenIcon({ size = 22 }: { size?: number }) {
 }
 
 /* =========================================================
-  星評価：部分塗り方式
-========================================================= */
-function StarRating({ value, size = 17 }: { value: number; size?: number }) {
-  return (
-    <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
-
-        return (
-          <span
-            key={star}
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: `${size}px`,
-              height: `${size}px`,
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width={size}
-              height={size}
-              style={{ color: COLORS.starEmpty }}
-            >
-              <path
-                fill="currentColor"
-                d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-              />
-            </svg>
-
-            <span
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: `${fillPercent}%`,
-                height: `${size}px`,
-                overflow: "hidden",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width={size} height={size} style={{ color: COLORS.star }}>
-                <path
-                  fill="currentColor"
-                  d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-                />
-              </svg>
-            </span>
-          </span>
-        )
-      })}
-    </span>
-  )
-}
-
-/* =========================================================
   補助関数
 ========================================================= */
 function formatDate(value: string | null) {
@@ -244,6 +172,9 @@ function getLevelInfo(activityScore: number) {
   }
 }
 
+/* =========================================================
+  小部品
+========================================================= */
 function StatCard({
   label,
   value,
@@ -254,13 +185,9 @@ function StatCard({
   sub?: string
 }) {
   return (
-    <div
+    <SectionCard
       style={{
-        backgroundColor: COLORS.surface,
-        border: `1px solid ${COLORS.line}`,
-        borderRadius: "20px",
         padding: "22px 24px",
-        boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
       }}
     >
       <p
@@ -300,7 +227,22 @@ function StatCard({
           {sub}
         </p>
       )}
-    </div>
+    </SectionCard>
+  )
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <SectionCard
+      style={{
+        padding: "32px",
+        color: COLORS.muted,
+        fontSize: "16px",
+        lineHeight: 1.8,
+      }}
+    >
+      {children}
+    </SectionCard>
   )
 }
 
@@ -456,825 +398,544 @@ export default function MyPage() {
 
   if (isLoading) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          padding: "48px 0",
-        }}
-      >
-        <div style={{ width: "min(1100px, calc(100vw - 48px))", margin: "0 auto" }}>
-          <div
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "22px",
-              padding: "32px",
-              color: COLORS.muted,
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            }}
-          >
-            読み込み中...
-          </div>
-        </div>
-      </main>
+      <PageShell wide>
+        <SectionCard>読み込み中...</SectionCard>
+      </PageShell>
     )
   }
 
   if (!userId) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          color: COLORS.text,
-          padding: "40px 0 72px",
-        }}
-      >
-        <div style={{ width: "min(900px, calc(100vw - 48px))", margin: "0 auto" }}>
-          <Link
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "17px",
-              fontWeight: 900,
-              textDecoration: "none",
-              marginBottom: "28px",
-            }}
-          >
-            <BackIcon />
-            トップへ戻る
-          </Link>
-
-          <section
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "24px",
-              padding: "36px",
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
-            }}
-          >
-            <h1
-              style={{
-                margin: 0,
-                color: COLORS.navy,
-                fontSize: "36px",
-                fontWeight: 900,
-              }}
-            >
-              マイページを見るにはログインが必要です
-            </h1>
-
-            <p
-              style={{
-                margin: "16px 0 0",
-                color: COLORS.slate,
-                fontSize: "17px",
-                lineHeight: 1.8,
-                fontWeight: 600,
-              }}
-            >
-              ログインすると、自分の投稿・レビュー・活動スコアを確認できます。
-            </p>
-
-            <Link
-              href="/login"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: "56px",
-                padding: "0 24px",
-                marginTop: "28px",
-                borderRadius: "14px",
-                backgroundColor: COLORS.navy,
-                color: "#FFFFFF",
-                textDecoration: "none",
-                fontSize: "17px",
-                fontWeight: 900,
-              }}
-            >
-              ログイン / 新規登録
-            </Link>
-          </section>
-        </div>
-      </main>
-    )
-  }
-
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: COLORS.paper,
-        color: COLORS.text,
-        padding: "32px 0 72px",
-      }}
-    >
-      <div
-        style={{
-          width: "min(1120px, calc(100vw - 48px))",
-          margin: "0 auto",
-        }}
-      >
-        {/* 戻る導線 */}
-        <nav
+      <PageShell>
+        <Link
+          href="/"
           style={{
-            marginBottom: "28px",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            flexWrap: "wrap",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            marginBottom: "28px",
           }}
         >
-          <Link
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "17px",
-              fontWeight: 900,
-              textDecoration: "none",
-            }}
-          >
-            <BackIcon />
-            トップへ戻る
-          </Link>
+          <BackIcon />
+          トップへ戻る
+        </Link>
 
-          <div
-            style={{
-              color: COLORS.slate,
-              fontSize: "15px",
-              fontWeight: 700,
-            }}
-          >
-            問ログ / マイページ
-          </div>
-        </nav>
-
-        {/* ページヘッダー */}
-        <header
+        <SectionCard
           style={{
-            textAlign: "center",
-            marginBottom: "34px",
+            padding: "36px",
           }}
         >
           <h1
             style={{
               margin: 0,
               color: COLORS.navy,
-              fontSize: "48px",
-              lineHeight: 1.15,
+              fontSize: "36px",
               fontWeight: 900,
-              letterSpacing: "-0.04em",
             }}
           >
-            マイページ
+            マイページを見るにはログインが必要です
           </h1>
 
           <p
             style={{
-              margin: "18px 0 0",
+              margin: "16px 0 0",
               color: COLORS.slate,
-              fontSize: "18px",
+              fontSize: "17px",
               lineHeight: 1.8,
               fontWeight: 600,
             }}
           >
-            自分の投稿・レビュー・活動の蓄積を確認する。
+            ログインすると、自分の投稿・レビュー・活動スコアを確認できます。
           </p>
-        </header>
 
-        {errorMessage && (
-          <section
+          <Link
+            href="/login"
             style={{
-              marginBottom: "24px",
-              backgroundColor: "#FEF2F2",
-              border: "1px solid #FCA5A5",
-              borderRadius: "18px",
-              padding: "18px 20px",
-              color: COLORS.danger,
-              fontSize: "16px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "56px",
+              padding: "0 24px",
+              marginTop: "28px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.navy,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "17px",
               fontWeight: 900,
             }}
           >
-            {errorMessage}
-          </section>
-        )}
+            ログイン / 新規登録
+          </Link>
+        </SectionCard>
+      </PageShell>
+    )
+  }
 
-        {/* プロフィールカード */}
-        <section
+  return (
+    <PageShell wide>
+      {/* =====================================================
+        戻る導線
+      ===================================================== */}
+      <nav
+        style={{
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link
+          href="/"
           style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "26px",
-            padding: "34px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
-            marginBottom: "28px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+          }}
+        >
+          <BackIcon />
+          トップへ戻る
+        </Link>
+
+        <div
+          style={{
+            color: COLORS.slate,
+            fontSize: "15px",
+            fontWeight: 700,
+          }}
+        >
+          問ログ / マイページ
+        </div>
+      </nav>
+
+      {/* =====================================================
+        ページヘッダー
+      ===================================================== */}
+      <header
+        style={{
+          textAlign: "center",
+          marginBottom: "34px",
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "48px",
+            lineHeight: 1.15,
+            fontWeight: 900,
+            letterSpacing: "-0.04em",
+          }}
+        >
+          マイページ
+        </h1>
+
+        <p
+          style={{
+            margin: "18px 0 0",
+            color: COLORS.slate,
+            fontSize: "18px",
+            lineHeight: 1.8,
+            fontWeight: 600,
+          }}
+        >
+          自分の投稿・レビュー・活動の蓄積を確認する。
+        </p>
+      </header>
+
+      {errorMessage && <MessageBox type="error">{errorMessage}</MessageBox>}
+
+      {/* =====================================================
+        プロフィールカード
+      ===================================================== */}
+      <SectionCard
+        style={{
+          padding: "34px",
+          borderRadius: RADII.xxl,
+          boxShadow: SHADOWS.cardStrong,
+          marginBottom: "28px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "28px",
+            flexWrap: "wrap",
           }}
         >
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: "28px",
+              gap: "22px",
               flexWrap: "wrap",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "22px",
-                flexWrap: "wrap",
-              }}
-            >
-              <RandomPixelAvatar
-                seed={userId}
-                size={88}
-                title={`${userName ?? "ユーザー"}のドット絵アバター`}
-              />
+            <RandomPixelAvatar
+              seed={userId}
+              size={88}
+              title={`${userName ?? "ユーザー"}のドット絵アバター`}
+            />
 
-              <div>
-                <p
-                  style={{
-                    margin: 0,
-                    color: COLORS.teal,
-                    fontSize: "14px",
-                    fontWeight: 900,
-                    letterSpacing: "0.14em",
-                  }}
-                >
-                  MY ACTIVITY
-                </p>
-
-                <h2
-                  style={{
-                    margin: "8px 0 0",
-                    color: COLORS.navy,
-                    fontSize: "30px",
-                    lineHeight: 1.3,
-                    fontWeight: 900,
-                  }}
-                >
-                  {userName ?? "ユーザー名未設定"}
-                </h2>
-
-                <p
-                  style={{
-                    margin: "8px 0 0",
-                    color: COLORS.slate,
-                    fontSize: "15px",
-                    fontWeight: 700,
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {email}
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/profile"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: "48px",
-                padding: "0 18px",
-                borderRadius: "14px",
-                backgroundColor: COLORS.navy,
-                color: "#FFFFFF",
-                textDecoration: "none",
-                fontSize: "15px",
-                fontWeight: 900,
-              }}
-            >
-              プロフィール設定
-            </Link>
-          </div>
-
-          <div
-            style={{
-              marginTop: "28px",
-              backgroundColor: COLORS.tealPanel,
-              border: "1px solid #B8DCD5",
-              borderRadius: "20px",
-              padding: "22px 24px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    margin: 0,
-                    color: COLORS.slate,
-                    fontSize: "14px",
-                    fontWeight: 900,
-                  }}
-                >
-                  現在のレベル
-                </p>
-
-                <p
-                  style={{
-                    margin: "8px 0 0",
-                    color: COLORS.navy,
-                    fontSize: "28px",
-                    fontWeight: 900,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  Lv.{levelInfo.level} {levelInfo.title}
-                </p>
-              </div>
-
+            <div>
               <p
                 style={{
                   margin: 0,
                   color: COLORS.teal,
-                  fontSize: "16px",
+                  fontSize: "14px",
+                  fontWeight: 900,
+                  letterSpacing: "0.14em",
+                }}
+              >
+                MY ACTIVITY
+              </p>
+
+              <h2
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.navy,
+                  fontSize: "30px",
+                  lineHeight: 1.3,
                   fontWeight: 900,
                 }}
               >
-                活動スコア {activityScore}pt
+                {userName ?? "ユーザー名未設定"}
+              </h2>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.slate,
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  wordBreak: "break-all",
+                }}
+              >
+                {email}
               </p>
             </div>
+          </div>
 
-            <div
-              style={{
-                marginTop: "18px",
-                height: "14px",
-                borderRadius: "999px",
-                backgroundColor: "rgba(255,255,255,0.78)",
-                overflow: "hidden",
-                border: `1px solid ${COLORS.line}`,
-              }}
-            >
-              <div
+          <Link
+            href="/profile"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "48px",
+              padding: "0 18px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.navy,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "15px",
+              fontWeight: 900,
+            }}
+          >
+            プロフィール設定
+          </Link>
+        </div>
+
+        <SectionCard
+          variant="teal"
+          style={{
+            marginTop: "28px",
+            padding: "22px 24px",
+            borderRadius: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p
                 style={{
-                  width: `${levelInfo.progress}%`,
-                  height: "100%",
-                  backgroundColor: COLORS.teal,
-                  borderRadius: "999px",
+                  margin: 0,
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 900,
                 }}
-              />
+              >
+                現在のレベル
+              </p>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.navy,
+                  fontSize: "28px",
+                  fontWeight: 900,
+                  lineHeight: 1.2,
+                }}
+              >
+                Lv.{levelInfo.level} {levelInfo.title}
+              </p>
             </div>
 
             <p
               style={{
-                margin: "10px 0 0",
-                color: COLORS.slate,
-                fontSize: "14px",
-                fontWeight: 700,
-              }}
-            >
-              {levelInfo.maxLevel
-                ? "最高レベルに到達しています。"
-                : `次のレベルまであと ${levelInfo.remaining}pt`}
-            </p>
-          </div>
-        </section>
-
-        {/* 活動サマリー */}
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-            gap: "18px",
-            marginBottom: "34px",
-          }}
-        >
-          <StatCard label="投稿問題数" value={postCount} sub="あなたが投稿した問題数" />
-          <StatCard label="受け取ったレビュー数" value={totalReviewCount} sub="自分の投稿に付いたレビュー" />
-          <StatCard label="自分が書いたレビュー" value={writtenReviewCount} sub="他の問題へのレビュー数" />
-          <StatCard
-            label="加重平均評価"
-            value={roundedWeightedAverage.toFixed(1)}
-            sub="全レビューをまとめた平均"
-          />
-        </section>
-
-        {/* 評価サマリー */}
-        <section
-          style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "24px",
-            padding: "28px 30px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            marginBottom: "36px",
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              color: COLORS.navy,
-              fontSize: "28px",
-              fontWeight: 900,
-            }}
-          >
-            評価サマリー
-          </h2>
-
-          <div
-            style={{
-              marginTop: "22px",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "20px",
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: COLORS.softYellow,
-                borderRadius: "18px",
-                padding: "22px",
-                border: `1px solid ${COLORS.line}`,
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  color: COLORS.slate,
-                  fontSize: "14px",
-                  fontWeight: 900,
-                }}
-              >
-                単純平均評価
-              </p>
-
-              <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
-                <StarRating value={simpleAverage} size={20} />
-                <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
-                  {roundedSimpleAverage.toFixed(1)}
-                </span>
-              </div>
-
-              <p
-                style={{
-                  margin: "12px 0 0",
-                  color: COLORS.muted,
-                  fontSize: "13px",
-                  lineHeight: 1.7,
-                  fontWeight: 700,
-                }}
-              >
-                各投稿問題の平均評価を、投稿数で割った値。
-              </p>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: COLORS.tealPanel,
-                borderRadius: "18px",
-                padding: "22px",
-                border: "1px solid #B8DCD5",
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  color: COLORS.slate,
-                  fontSize: "14px",
-                  fontWeight: 900,
-                }}
-              >
-                加重平均評価
-              </p>
-
-              <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
-                <StarRating value={weightedAverage} size={20} />
-                <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
-                  {roundedWeightedAverage.toFixed(1)}
-                </span>
-              </div>
-
-              <p
-                style={{
-                  margin: "12px 0 0",
-                  color: COLORS.muted,
-                  fontSize: "13px",
-                  lineHeight: 1.7,
-                  fontWeight: 700,
-                }}
-              >
-                すべてのレビュー評価をまとめて計算した値。
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 自分の投稿一覧 */}
-        <section style={{ marginBottom: "42px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              marginBottom: "24px",
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  color: COLORS.navy,
-                  fontSize: "32px",
-                  fontWeight: 900,
-                }}
-              >
-                自分の投稿
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "15px",
-                  fontWeight: 700,
-                }}
-              >
-                投稿した問題の評価とレビュー状況
-              </p>
-            </div>
-
-            <Link
-              href="/new"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                minHeight: "48px",
-                padding: "0 18px",
-                borderRadius: "14px",
-                backgroundColor: COLORS.teal,
-                color: "#FFFFFF",
-                textDecoration: "none",
-                fontSize: "15px",
+                margin: 0,
+                color: COLORS.teal,
+                fontSize: "16px",
                 fontWeight: 900,
               }}
             >
-              <PenIcon size={18} />
-              問題を投稿する
-            </Link>
+              活動スコア {activityScore}pt
+            </p>
           </div>
 
-          {myProblems.length === 0 ? (
-            <div
-              style={{
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "22px",
-                padding: "32px",
-                color: COLORS.muted,
-                fontSize: "16px",
-                lineHeight: 1.8,
-                boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-              }}
-            >
-              まだ投稿した問題はありません。まずは1問投稿してみましょう。
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: "22px" }}>
-              {myProblems.map((problem) => {
-                const roundedAverage = Math.floor(problem.average * 10) / 10
-
-                return (
-                  <article
-                    key={problem.id}
-                    style={{
-                      backgroundColor: COLORS.surface,
-                      border: `1px solid ${COLORS.line}`,
-                      borderRadius: "22px",
-                      padding: "28px 30px",
-                      boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: "18px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div style={{ flex: "1 1 560px" }}>
-                        <Link
-                          href={`/problems/${problem.id}`}
-                          style={{
-                            color: COLORS.navy,
-                            textDecoration: "none",
-                          }}
-                        >
-                          <h3
-                            style={{
-                              margin: 0,
-                              color: COLORS.navy,
-                              fontSize: "24px",
-                              lineHeight: 1.45,
-                              fontWeight: 900,
-                            }}
-                          >
-                            {problem.title}
-                          </h3>
-                        </Link>
-
-                        <p
-                          style={{
-                            margin: "12px 0 0",
-                            color: COLORS.slate,
-                            fontSize: "15px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          投稿日: {formatDate(problem.created_at)}
-                        </p>
-
-                        {problem.content && (
-                          <p
-                            style={{
-                              margin: "16px 0 0",
-                              color: COLORS.text,
-                              fontSize: "16px",
-                              lineHeight: 1.8,
-                            }}
-                          >
-                            {truncateText(problem.content, 120)}
-                          </p>
-                        )}
-                      </div>
-
-                      <div
-                        style={{
-                          minWidth: "180px",
-                          backgroundColor: COLORS.tealPanel,
-                          borderRadius: "16px",
-                          padding: "16px",
-                          border: "1px solid #B8DCD5",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <StarRating value={problem.average} size={18} />
-                          <span style={{ color: COLORS.navy, fontSize: "19px", fontWeight: 900 }}>
-                            {roundedAverage.toFixed(1)}
-                          </span>
-                        </div>
-
-                        <p
-                          style={{
-                            margin: "10px 0 0",
-                            color: COLORS.slate,
-                            fontSize: "14px",
-                            fontWeight: 800,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "7px",
-                          }}
-                        >
-                          <CommentIcon size={18} />
-                          {problem.reviewCount}件
-                        </p>
-                      </div>
-                    </div>
-
-                    {problem.tags.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "10px",
-                          marginTop: "20px",
-                        }}
-                      >
-                        {problem.tags.map((tag) => (
-                          <Link
-                            key={tag}
-                            href={`/?q=${encodeURIComponent(tag)}`}
-                            style={{
-                              borderRadius: "999px",
-                              backgroundColor: COLORS.tagBg,
-                              color: COLORS.tagText,
-                              padding: "8px 16px",
-                              fontSize: "14px",
-                              fontWeight: 900,
-                              textDecoration: "none",
-                            }}
-                          >
-                            #{tag}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-
-                    <Link
-                      href={`/problems/${problem.id}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: "100%",
-                        minHeight: "54px",
-                        marginTop: "22px",
-                        borderRadius: "14px",
-                        backgroundColor: COLORS.navy,
-                        color: "#FFFFFF",
-                        textDecoration: "none",
-                        fontSize: "16px",
-                        fontWeight: 900,
-                      }}
-                    >
-                      詳細を見る
-                    </Link>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* 自分が書いたレビュー一覧 */}
-        <section>
           <div
             style={{
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              marginBottom: "24px",
+              marginTop: "18px",
+              height: "14px",
+              borderRadius: RADII.pill,
+              backgroundColor: "rgba(255,255,255,0.78)",
+              overflow: "hidden",
+              border: `1px solid ${COLORS.line}`,
             }}
           >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  color: COLORS.navy,
-                  fontSize: "32px",
-                  fontWeight: 900,
-                }}
-              >
-                自分が書いたレビュー
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "15px",
-                  fontWeight: 700,
-                }}
-              >
-                他の問題に残した評価とコメント
-              </p>
-            </div>
-          </div>
-
-          {myReviews.length === 0 ? (
             <div
               style={{
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "22px",
-                padding: "32px",
-                color: COLORS.muted,
-                fontSize: "16px",
-                lineHeight: 1.8,
-                boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+                width: `${levelInfo.progress}%`,
+                height: "100%",
+                backgroundColor: COLORS.teal,
+                borderRadius: RADII.pill,
+              }}
+            />
+          </div>
+
+          <p
+            style={{
+              margin: "10px 0 0",
+              color: COLORS.slate,
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
+          >
+            {levelInfo.maxLevel
+              ? "最高レベルに到達しています。"
+              : `次のレベルまであと ${levelInfo.remaining}pt`}
+          </p>
+        </SectionCard>
+      </SectionCard>
+
+      {/* =====================================================
+        活動サマリー
+      ===================================================== */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: "18px",
+          marginBottom: "34px",
+        }}
+      >
+        <StatCard label="投稿問題数" value={postCount} sub="あなたが投稿した問題数" />
+        <StatCard label="受け取ったレビュー数" value={totalReviewCount} sub="自分の投稿に付いたレビュー" />
+        <StatCard label="自分が書いたレビュー" value={writtenReviewCount} sub="他の問題へのレビュー数" />
+        <StatCard
+          label="加重平均評価"
+          value={roundedWeightedAverage.toFixed(1)}
+          sub="全レビューをまとめた平均"
+        />
+      </section>
+
+      {/* =====================================================
+        評価サマリー
+      ===================================================== */}
+      <SectionCard
+        style={{
+          padding: "28px 30px",
+          marginBottom: "36px",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "28px",
+            fontWeight: 900,
+          }}
+        >
+          評価サマリー
+        </h2>
+
+        <div
+          style={{
+            marginTop: "22px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          <SectionCard
+            variant="yellow"
+            style={{
+              padding: "22px",
+              borderRadius: RADII.lg,
+              boxShadow: "none",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.slate,
+                fontSize: "14px",
+                fontWeight: 900,
               }}
             >
-              まだレビューを書いていません。気になる問題にレビューを残してみましょう。
+              単純平均評価
+            </p>
+
+            <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <StarRating value={simpleAverage} size={20} />
+              <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
+                {roundedSimpleAverage.toFixed(1)}
+              </span>
             </div>
-          ) : (
-            <div style={{ display: "grid", gap: "18px" }}>
-              {myReviews.map((review) => (
-                <article
-                  key={review.id}
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: COLORS.muted,
+                fontSize: "13px",
+                lineHeight: 1.7,
+                fontWeight: 700,
+              }}
+            >
+              各投稿問題の平均評価を、投稿数で割った値。
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            variant="teal"
+            style={{
+              padding: "22px",
+              borderRadius: RADII.lg,
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.slate,
+                fontSize: "14px",
+                fontWeight: 900,
+              }}
+            >
+              加重平均評価
+            </p>
+
+            <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <StarRating value={weightedAverage} size={20} />
+              <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
+                {roundedWeightedAverage.toFixed(1)}
+              </span>
+            </div>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: COLORS.muted,
+                fontSize: "13px",
+                lineHeight: 1.7,
+                fontWeight: 700,
+              }}
+            >
+              すべてのレビュー評価をまとめて計算した値。
+            </p>
+          </SectionCard>
+        </div>
+      </SectionCard>
+
+      {/* =====================================================
+        自分の投稿一覧
+      ===================================================== */}
+      <section style={{ marginBottom: "42px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "24px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "32px",
+                fontWeight: 900,
+              }}
+            >
+              自分の投稿
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              投稿した問題の評価とレビュー状況
+            </p>
+          </div>
+
+          <Link
+            href="/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              minHeight: "48px",
+              padding: "0 18px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.teal,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "15px",
+              fontWeight: 900,
+            }}
+          >
+            <PenIcon size={18} />
+            問題を投稿する
+          </Link>
+        </div>
+
+        {myProblems.length === 0 ? (
+          <EmptyState>まだ投稿した問題はありません。まずは1問投稿してみましょう。</EmptyState>
+        ) : (
+          <div style={{ display: "grid", gap: "22px" }}>
+            {myProblems.map((problem) => {
+              const roundedAverage = Math.floor(problem.average * 10) / 10
+
+              return (
+                <SectionCard
+                  key={problem.id}
                   style={{
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${COLORS.line}`,
-                    borderRadius: "20px",
-                    padding: "24px 26px",
-                    boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+                    padding: "28px 30px",
                   }}
                 >
                   <div
@@ -1282,13 +943,13 @@ export default function MyPage() {
                       display: "flex",
                       alignItems: "flex-start",
                       justifyContent: "space-between",
-                      gap: "16px",
+                      gap: "18px",
                       flexWrap: "wrap",
                     }}
                   >
-                    <div>
+                    <div style={{ flex: "1 1 560px" }}>
                       <Link
-                        href={`/problems/${review.problem_id}`}
+                        href={`/problems/${problem.id}`}
                         style={{
                           color: COLORS.navy,
                           textDecoration: "none",
@@ -1298,64 +959,256 @@ export default function MyPage() {
                           style={{
                             margin: 0,
                             color: COLORS.navy,
-                            fontSize: "20px",
+                            fontSize: "24px",
                             lineHeight: 1.45,
                             fontWeight: 900,
                           }}
                         >
-                          {review.problem_title}
+                          {problem.title}
                         </h3>
                       </Link>
 
-                      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
-                        <StarRating value={review.rating} size={18} />
-                        <span style={{ color: COLORS.navy, fontSize: "17px", fontWeight: 900 }}>
-                          {review.rating.toFixed(1)}
-                        </span>
-                      </div>
+                      <p
+                        style={{
+                          margin: "12px 0 0",
+                          color: COLORS.slate,
+                          fontSize: "15px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        投稿日: {formatDate(problem.created_at)}
+                      </p>
+
+                      {problem.content && (
+                        <p
+                          style={{
+                            margin: "16px 0 0",
+                            color: COLORS.text,
+                            fontSize: "16px",
+                            lineHeight: 1.8,
+                          }}
+                        >
+                          {truncateText(problem.content, 120)}
+                        </p>
+                      )}
                     </div>
 
-                    <p
+                    <SectionCard
+                      variant="teal"
                       style={{
-                        margin: 0,
-                        color: COLORS.muted,
-                        fontSize: "14px",
-                        fontWeight: 700,
+                        minWidth: "180px",
+                        padding: "16px",
+                        borderRadius: "16px",
                       }}
                     >
-                      {formatDate(review.created_at)}
-                    </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <StarRating value={problem.average} size={18} />
+                        <span style={{ color: COLORS.navy, fontSize: "19px", fontWeight: 900 }}>
+                          {roundedAverage.toFixed(1)}
+                        </span>
+                      </div>
+
+                      <p
+                        style={{
+                          margin: "10px 0 0",
+                          color: COLORS.slate,
+                          fontSize: "14px",
+                          fontWeight: 800,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "7px",
+                        }}
+                      >
+                        <CommentIcon size={18} />
+                        {problem.reviewCount}件
+                      </p>
+                    </SectionCard>
                   </div>
 
-                  {review.comment ? (
-                    <p
+                  {problem.tags.length > 0 && (
+                    <div
                       style={{
-                        margin: "18px 0 0",
-                        color: COLORS.text,
-                        fontSize: "16px",
-                        lineHeight: 1.8,
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                        marginTop: "20px",
                       }}
                     >
-                      {review.comment}
-                    </p>
-                  ) : (
-                    <p
-                      style={{
-                        margin: "18px 0 0",
-                        color: COLORS.muted,
-                        fontSize: "15px",
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      コメントなし
-                    </p>
+                      {problem.tags.map((tag) => (
+                        <Link
+                          key={tag}
+                          href={`/?q=${encodeURIComponent(tag)}`}
+                          style={{
+                            borderRadius: RADII.pill,
+                            backgroundColor: COLORS.tagBg,
+                            color: COLORS.tagText,
+                            padding: "8px 16px",
+                            fontSize: "14px",
+                            fontWeight: 900,
+                            textDecoration: "none",
+                          }}
+                        >
+                          #{tag}
+                        </Link>
+                      ))}
+                    </div>
                   )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
+
+                  <Link
+                    href={`/problems/${problem.id}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "100%",
+                      minHeight: "54px",
+                      marginTop: "22px",
+                      borderRadius: RADII.md,
+                      backgroundColor: COLORS.navy,
+                      color: "#FFFFFF",
+                      textDecoration: "none",
+                      fontSize: "16px",
+                      fontWeight: 900,
+                    }}
+                  >
+                    詳細を見る
+                  </Link>
+                </SectionCard>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* =====================================================
+        自分が書いたレビュー一覧
+      ===================================================== */}
+      <section>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "24px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "32px",
+                fontWeight: 900,
+              }}
+            >
+              自分が書いたレビュー
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              他の問題に残した評価とコメント
+            </p>
+          </div>
+        </div>
+
+        {myReviews.length === 0 ? (
+          <EmptyState>まだレビューを書いていません。気になる問題にレビューを残してみましょう。</EmptyState>
+        ) : (
+          <div style={{ display: "grid", gap: "18px" }}>
+            {myReviews.map((review) => (
+              <SectionCard
+                key={review.id}
+                style={{
+                  padding: "24px 26px",
+                  borderRadius: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <Link
+                      href={`/problems/${review.problem_id}`}
+                      style={{
+                        color: COLORS.navy,
+                        textDecoration: "none",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: 0,
+                          color: COLORS.navy,
+                          fontSize: "20px",
+                          lineHeight: 1.45,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {review.problem_title}
+                      </h3>
+                    </Link>
+
+                    <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <StarRating value={review.rating} size={18} />
+                      <span style={{ color: COLORS.navy, fontSize: "17px", fontWeight: 900 }}>
+                        {review.rating.toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p
+                    style={{
+                      margin: 0,
+                      color: COLORS.muted,
+                      fontSize: "14px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {formatDate(review.created_at)}
+                  </p>
+                </div>
+
+                {review.comment ? (
+                  <p
+                    style={{
+                      margin: "18px 0 0",
+                      color: COLORS.text,
+                      fontSize: "16px",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    {review.comment}
+                  </p>
+                ) : (
+                  <p
+                    style={{
+                      margin: "18px 0 0",
+                      color: COLORS.muted,
+                      fontSize: "15px",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    コメントなし
+                  </p>
+                )}
+              </SectionCard>
+            ))}
+          </div>
+        )}
+      </section>
+    </PageShell>
   )
 }

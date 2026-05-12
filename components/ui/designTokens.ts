@@ -1,3 +1,4 @@
+/*app/components/ui/designTokens.ts*/
 export const COLORS = {
   paper: "#FAF7F0",
   surface: "#FFFFFF",

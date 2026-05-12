@@ -1,11 +1,13 @@
+/*app/components/ui/SectionCard.tsx*/
 "use client"
 
+import type { CSSProperties, ReactNode } from "react"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 type SectionCardProps = {
-  children: React.ReactNode
+  children: ReactNode
   variant?: "white" | "teal" | "yellow"
-  style?: React.CSSProperties
+  style?: CSSProperties
 }
 
 export default function SectionCard({

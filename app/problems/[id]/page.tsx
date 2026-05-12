@@ -4,57 +4,14 @@ import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-
-/* =========================================================
-  問ログ Design System v1.5
-========================================================= */
-const COLORS = {
-  paper: "#FAF7F0",
-  surface: "#FFFFFF",
-  navy: "#1E3A5F",
-  text: "#1F2937",
-  muted: "#64748B",
-  slate: "#526984",
-  line: "#D8DDD6",
-  lineStrong: "#C9D2CD",
-  teal: "#2A9D8F",
-  tealPanel: "#E3F1EE",
-  tagBg: "#E2F1EE",
-  tagText: "#158B80",
-  star: "#F4A261",
-  starEmpty: "#D7D3C8",
-  danger: "#DC2626",
-  softYellow: "#FBF8EF",
-}
-
-/* =========================================================
-  型定義
-========================================================= */
-type Problem = {
-  id: string
-  title: string
-  content: string | null
-  created_at: string
-  tags: string[]
-}
-
-type Review = {
-  id: string
-  rating: number
-  comment: string | null
-  created_at: string | null
-  user_id: string | null
-  username: string | null
-}
-
-type ReviewRow = {
-  id: string
-  rating: number | string | null
-  comment?: string | null
-  created_at?: string | null
-  user_id?: string | null
-  profiles?: { username: string | null } | { username: string | null }[] | null
-}
+import ProblemMarkdown from "@/components/ProblemMarkdown"
+import UserMiniBadge from "@/components/UserMiniBadge"
+import LatexTemplateSelector from "@/components/LatexTemplateSelector"
+import PageShell from "@/components/ui/PageShell"
+import SectionCard from "@/components/ui/SectionCard"
+import MessageBox from "@/components/ui/MessageBox"
+import StarRating from "@/components/ui/StarRating"
+import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 type TagRow = {
   name: string | null
@@ -64,27 +21,45 @@ type ProblemTagRow = {
   tags: TagRow | TagRow[] | null
 }
 
+type ReviewRow = {
+  id: string
+  rating: number | string | null
+  comment: string | null
+  created_at: string | null
+  user_id?: string | null
+}
+
 type ProblemRow = {
   id: string
   title: string
   content: string | null
   created_at: string
+  user_id: string | null
   problem_tags: ProblemTagRow[] | null
   reviews: ReviewRow[] | null
 }
 
-/* =========================================================
-  アイコン
-========================================================= */
+type Problem = {
+  id: string
+  title: string
+  content: string | null
+  created_at: string
+  user_id: string | null
+  tags: string[]
+}
+
+type Review = {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string | null
+  user_id?: string | null
+}
+
 function BackIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M19 12H5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path
         d="M12 19l-7-7 7-7"
         stroke="currentColor"
@@ -110,137 +85,36 @@ function CommentIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function UserIcon({ size = 22 }: { size?: number }) {
+function EditIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       <path
-        d="M20 21a8 8 0 0 0-16 0"
+        d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"
         stroke="currentColor"
         strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
-        stroke="currentColor"
-        strokeWidth="2"
+        strokeLinejoin="round"
       />
     </svg>
   )
 }
 
-/* =========================================================
-  星評価：部分塗り方式
-========================================================= */
-function StarRating({ value, size = 18 }: { value: number; size?: number }) {
+function TrashIcon({ size = 18 }: { size?: number }) {
   return (
-    <span
-      aria-label={`評価 ${value.toFixed(1)}`}
-      style={{
-        display: "inline-flex",
-        gap: "2px",
-        verticalAlign: "middle",
-      }}
-    >
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
-
-        return (
-          <span
-            key={star}
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: `${size}px`,
-              height: `${size}px`,
-            }}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width={size}
-              height={size}
-              style={{ color: COLORS.starEmpty }}
-            >
-              <path
-                fill="currentColor"
-                d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-              />
-            </svg>
-
-            <span
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: `${fillPercent}%`,
-                height: `${size}px`,
-                overflow: "hidden",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width={size} height={size} style={{ color: COLORS.star }}>
-                <path
-                  fill="currentColor"
-                  d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-                />
-              </svg>
-            </span>
-          </span>
-        )
-      })}
-    </span>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 6V4h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M6 6l1 15h10l1-15"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
   )
 }
 
-function RatingSummary({ average, count }: { average: number; count: number }) {
-  const rounded = Math.floor(average * 10) / 10
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "14px",
-      }}
-    >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "9px",
-        }}
-      >
-        <StarRating value={average} size={20} />
-        <span
-          style={{
-            color: COLORS.text,
-            fontSize: "22px",
-            fontWeight: 900,
-          }}
-        >
-          {rounded.toFixed(1)}
-        </span>
-      </span>
-
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          color: COLORS.slate,
-          fontSize: "18px",
-          fontWeight: 800,
-        }}
-      >
-        <CommentIcon size={21} />
-        <span>{count}件</span>
-      </span>
-    </div>
-  )
-}
-
-/* =========================================================
-  補助関数
-========================================================= */
 function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
   return (problemTags ?? [])
     .map((pt) => {
@@ -251,500 +125,936 @@ function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
     .filter(Boolean)
 }
 
-function normalizeReviews(reviews: ReviewRow[] | null): Review[] {
-  return (reviews ?? [])
-    .map((review) => {
-      const profile = Array.isArray(review.profiles) ? review.profiles[0] : review.profiles
-
-      return {
-        id: review.id,
-        rating: Number(review.rating),
-        comment: review.comment ?? null,
-        created_at: review.created_at ?? null,
-        user_id: review.user_id ?? null,
-        username: profile?.username ?? null,
-      }
-    })
-    .filter((review) => Number.isFinite(review.rating))
-}
-
-function calcAverage(reviews: Review[]) {
-  if (reviews.length === 0) return 0
-  return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-}
-
 function formatDate(value: string | null) {
   if (!value) return ""
   return new Date(value).toISOString().slice(0, 10)
 }
 
-function sortReviews(reviews: Review[]) {
-  return [...reviews].sort((a, b) => {
-    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
-    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
-    return bTime - aTime
-  })
+function getProblemId(paramsId: string | string[] | undefined) {
+  if (Array.isArray(paramsId)) return paramsId[0]
+  return paramsId ?? ""
 }
 
-/* =========================================================
-  詳細ページ
-========================================================= */
+function ActionButton({
+  children,
+  onClick,
+  variant = "secondary",
+  disabled = false,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  variant?: "primary" | "secondary" | "danger"
+  disabled?: boolean
+}) {
+  const isPrimary = variant === "primary"
+  const isDanger = variant === "danger"
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "7px",
+        minHeight: "42px",
+        padding: "0 15px",
+        borderRadius: RADII.md,
+        border: `1px solid ${isPrimary ? COLORS.navy : isDanger ? "#FCA5A5" : COLORS.lineStrong}`,
+        backgroundColor: isPrimary ? COLORS.navy : isDanger ? "#FEF2F2" : COLORS.surface,
+        color: isPrimary ? "#FFFFFF" : isDanger ? COLORS.danger : COLORS.navy,
+        fontSize: "14px",
+        fontWeight: 900,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.65 : 1,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ModeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: "40px",
+        padding: "0 18px",
+        borderRadius: RADII.pill,
+        border: `1px solid ${active ? COLORS.teal : COLORS.lineStrong}`,
+        backgroundColor: active ? COLORS.teal : COLORS.surface,
+        color: active ? "#FFFFFF" : COLORS.navy,
+        fontSize: "15px",
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function LatexHelpChips() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "10px",
+        flexWrap: "wrap",
+        marginTop: "12px",
+        color: COLORS.slate,
+        fontSize: "13px",
+        fontWeight: 800,
+      }}
+    >
+      <span
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: RADII.sm,
+          backgroundColor: COLORS.softYellow,
+          padding: "5px 9px",
+        }}
+      >
+        インライン数式：{String.raw`$ \frac{1}{2} $`}
+      </span>
+
+      <span
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: RADII.sm,
+          backgroundColor: COLORS.softYellow,
+          padding: "5px 9px",
+        }}
+      >
+        表示数式：{String.raw`$$ \int_0^1 x^2 dx $$`}
+      </span>
+    </div>
+  )
+}
+
 export default function ProblemDetailPage() {
-  const params = useParams<{ id: string }>()
+  const params = useParams()
   const router = useRouter()
-  const problemId = params?.id
+  const problemId = getProblemId(params.id as string | string[] | undefined)
 
   const [problem, setProblem] = useState<Problem | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
+
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
 
-  const [rating, setRating] = useState(5)
+  const [rating, setRating] = useState("5")
   const [comment, setComment] = useState("")
+  const [commentMode, setCommentMode] = useState<"input" | "preview">("input")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const average = useMemo(() => calcAverage(reviews), [reviews])
-  const sortedReviews = useMemo(() => sortReviews(reviews), [reviews])
+  const [isEditingProblem, setIsEditingProblem] = useState(false)
+  const [editTitle, setEditTitle] = useState("")
+  const [editContent, setEditContent] = useState("")
+  const [editContentMode, setEditContentMode] = useState<"input" | "preview">("input")
+  const [isUpdatingProblem, setIsUpdatingProblem] = useState(false)
+  const [isDeletingProblem, setIsDeletingProblem] = useState(false)
 
-  /* ---------------------------------------------------------
-    ログイン状態取得
-  --------------------------------------------------------- */
-  useEffect(() => {
-    async function loadUser() {
-      const { data } = await supabase.auth.getUser()
-      const user = data.user
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null)
+  const [editReviewRating, setEditReviewRating] = useState("5")
+  const [editReviewComment, setEditReviewComment] = useState("")
+  const [editReviewMode, setEditReviewMode] = useState<"input" | "preview">("input")
+  const [isUpdatingReviewId, setIsUpdatingReviewId] = useState<string | null>(null)
+  const [isDeletingReviewId, setIsDeletingReviewId] = useState<string | null>(null)
 
-      setUserId(user?.id ?? null)
-      setUserEmail(user?.email ?? null)
+  function insertCommentLatexTemplate(latex: string) {
+    setComment((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setCommentMode("input")
+  }
+
+  function insertEditReviewLatexTemplate(latex: string) {
+    setEditReviewComment((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setEditReviewMode("input")
+  }
+
+  function insertEditProblemLatexTemplate(latex: string) {
+    setEditContent((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${latex}` : latex
+    })
+    setEditContentMode("input")
+  }
+
+  async function loadUserAndProfile() {
+    const { data } = await supabase.auth.getUser()
+    const user = data.user
+
+    if (!user) {
+      setUserId(null)
+      setUserEmail(null)
+      setUserName(null)
+      return
     }
 
-    loadUser()
+    setUserId(user.id)
+    setUserEmail(user.email ?? null)
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.warn("プロフィール取得エラー:", error.message)
+      setUserName(null)
+      return
+    }
+
+    setUserName(profile?.username ?? null)
+  }
+
+  async function fetchProblem() {
+    if (!problemId) return
+
+    setIsLoading(true)
+    setErrorMessage("")
+
+    const { data, error } = await supabase
+      .from("problems")
+      .select(`
+        id,
+        title,
+        content,
+        created_at,
+        user_id,
+        problem_tags (
+          tags ( name )
+        ),
+        reviews (
+          id,
+          rating,
+          comment,
+          created_at,
+          user_id
+        )
+      `)
+      .eq("id", problemId)
+      .maybeSingle()
+
+    if (error) {
+      console.error("問題詳細取得エラー:", error.message)
+      setErrorMessage("問題詳細の取得に失敗しました。")
+      setIsLoading(false)
+      return
+    }
+
+    if (!data) {
+      setProblem(null)
+      setReviews([])
+      setErrorMessage("問題が見つかりませんでした。")
+      setIsLoading(false)
+      return
+    }
+
+    const row = data as unknown as ProblemRow
+
+    setProblem({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      created_at: row.created_at,
+      user_id: row.user_id,
+      tags: extractTagNames(row.problem_tags),
+    })
+
+    setEditTitle(row.title)
+    setEditContent(row.content ?? "")
+
+    const nextReviews: Review[] = (row.reviews ?? [])
+      .map((review) => ({
+        id: review.id,
+        rating: Number(review.rating),
+        comment: review.comment,
+        created_at: review.created_at,
+        user_id: review.user_id,
+      }))
+      .filter((review) => Number.isFinite(review.rating))
+      .sort((a, b) => {
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+        return bTime - aTime
+      })
+
+    setReviews(nextReviews)
+    setIsLoading(false)
+  }
+
+  useEffect(() => {
+    loadUserAndProfile()
+    fetchProblem()
 
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUser()
+      loadUserAndProfile()
     })
 
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [])
-
-  /* ---------------------------------------------------------
-    問題詳細取得
-  --------------------------------------------------------- */
-  useEffect(() => {
-    if (!problemId) return
-
-    async function fetchProblem() {
-      setIsLoading(true)
-      setErrorMessage(null)
-
-      const primaryResult = await supabase
-        .from("problems")
-        .select(`
-          id,
-          title,
-          content,
-          created_at,
-          problem_tags (
-            tags ( name )
-          ),
-          reviews (
-            id,
-            rating,
-            comment,
-            created_at,
-            user_id,
-            profiles (
-              username
-            )
-          )
-        `)
-        .eq("id", problemId)
-        .maybeSingle()
-
-      let data: unknown = primaryResult.data
-      let error: { message: string } | null = primaryResult.error
-
-      if (error) {
-        console.warn(
-          "reviews.comment / profiles 付き取得に失敗。rating中心で再取得します:",
-          error.message
-        )
-
-        const fallbackResult = await supabase
-          .from("problems")
-          .select(`
-            id,
-            title,
-            content,
-            created_at,
-            problem_tags (
-              tags ( name )
-            ),
-            reviews (
-              id,
-              rating,
-              comment,
-              created_at,
-              user_id
-            )
-          `)
-          .eq("id", problemId)
-          .maybeSingle()
-
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
-
-      if (error) {
-        console.error("問題詳細取得エラー:", error.message)
-        setErrorMessage("問題詳細の取得に失敗しました。")
-        setIsLoading(false)
-        return
-      }
-
-      if (!data) {
-        setErrorMessage("問題が見つかりませんでした。")
-        setIsLoading(false)
-        return
-      }
-
-      const row = data as ProblemRow
-
-      setProblem({
-        id: row.id,
-        title: row.title,
-        content: row.content,
-        created_at: row.created_at,
-        tags: extractTagNames(row.problem_tags),
-      })
-
-      setReviews(normalizeReviews(row.reviews))
-      setIsLoading(false)
-    }
-
-    fetchProblem()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId])
 
-  /* ---------------------------------------------------------
-    レビュー投稿
-  --------------------------------------------------------- */
-  async function handleSubmitReview(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0
+    return reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+  }, [reviews])
 
-    if (!problemId || !userId) return
+  const roundedAverage = Math.floor(averageRating * 10) / 10
+  const isProblemOwner = Boolean(userId && problem?.user_id === userId)
 
-    setIsSubmitting(true)
-    setSubmitMessage(null)
-    setErrorMessage(null)
+  async function handleUpdateProblem() {
+    setErrorMessage("")
+    setSuccessMessage("")
 
-    const payload = {
-      problem_id: problemId,
-      user_id: userId,
-      rating,
-      comment: comment.trim() || null,
+    if (!problem || !userId) return
+
+    if (!editTitle.trim()) {
+      setErrorMessage("タイトルを入力してください。")
+      return
     }
 
-    const { error } = await supabase.from("reviews").insert(payload)
+    if (!editContent.trim()) {
+      setErrorMessage("本文を入力してください。")
+      return
+    }
+
+    setIsUpdatingProblem(true)
+
+    const { error } = await supabase
+      .from("problems")
+      .update({
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+      .eq("id", problem.id)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("問題更新エラー:", error.message)
+      setErrorMessage(`問題の更新に失敗しました：${error.message}`)
+      setIsUpdatingProblem(false)
+      return
+    }
+
+    setSuccessMessage("問題を更新しました。")
+    setIsEditingProblem(false)
+    setIsUpdatingProblem(false)
+
+    await fetchProblem()
+  }
+
+  async function handleDeleteProblem() {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!problem || !userId) return
+
+    const ok = window.confirm(
+      "この問題を削除します。レビューやタグ紐付けも削除されます。よろしいですか？"
+    )
+
+    if (!ok) return
+
+    setIsDeletingProblem(true)
+
+    const { error: reviewDeleteError } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (reviewDeleteError) {
+      console.error("レビュー削除エラー:", reviewDeleteError.message)
+      setErrorMessage(`関連レビューの削除に失敗しました：${reviewDeleteError.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    const { error: tagDeleteError } = await supabase
+      .from("problem_tags")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (tagDeleteError) {
+      console.error("タグ紐付け削除エラー:", tagDeleteError.message)
+      setErrorMessage(`タグ紐付けの削除に失敗しました：${tagDeleteError.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from("problems")
+      .delete()
+      .eq("id", problem.id)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("問題削除エラー:", error.message)
+      setErrorMessage(`問題の削除に失敗しました：${error.message}`)
+      setIsDeletingProblem(false)
+      return
+    }
+
+    router.push("/")
+  }
+
+  async function handleSubmitReview() {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!problem) return
+
+    const parsedRating = Number(rating)
+
+    if (
+      !Number.isFinite(parsedRating) ||
+      !Number.isInteger(parsedRating) ||
+      parsedRating < 1 ||
+      parsedRating > 5
+    ) {
+      setErrorMessage("評価は1〜5の整数で選択してください。")
+      return
+    }
+
+    if (!comment.trim()) {
+      setErrorMessage("コメントを入力してください。")
+      return
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !userData.user) {
+      setErrorMessage("レビューするにはログインが必要です。")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    const { error } = await supabase.from("reviews").insert({
+      problem_id: problem.id,
+      user_id: userData.user.id,
+      rating: parsedRating,
+      comment: comment.trim(),
+    })
 
     if (error) {
       console.error("レビュー投稿エラー:", error.message)
-      setSubmitMessage("レビューの投稿に失敗しました。")
+      setErrorMessage(`レビュー投稿に失敗しました：${error.message}`)
       setIsSubmitting(false)
       return
     }
 
     setComment("")
-    setRating(5)
-    setSubmitMessage("レビューを投稿しました。")
-
-    const { data, error: refetchError } = await supabase
-      .from("reviews")
-      .select(`
-        id,
-        rating,
-        comment,
-        created_at,
-        user_id,
-        profiles (
-          username
-        )
-      `)
-      .eq("problem_id", problemId)
-      .order("created_at", { ascending: false })
-
-    if (!refetchError) {
-      setReviews(normalizeReviews((data ?? []) as unknown as ReviewRow[]))
-    }
-
+    setRating("5")
+    setCommentMode("input")
+    setSuccessMessage("レビューを投稿しました。")
     setIsSubmitting(false)
+
+    await fetchProblem()
   }
 
-  function handleTagClick(tag: string) {
-    router.push(`/?q=${encodeURIComponent(tag)}`)
+  function startEditReview(review: Review) {
+    setEditingReviewId(review.id)
+    setEditReviewRating(String(Math.round(review.rating)))
+    setEditReviewComment(review.comment ?? "")
+    setEditReviewMode("input")
+  }
+
+  async function handleUpdateReview(reviewId: string) {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!userId) return
+
+    const parsedRating = Number(editReviewRating)
+
+    if (
+      !Number.isFinite(parsedRating) ||
+      !Number.isInteger(parsedRating) ||
+      parsedRating < 1 ||
+      parsedRating > 5
+    ) {
+      setErrorMessage("評価は1〜5の整数で選択してください。")
+      return
+    }
+
+    if (!editReviewComment.trim()) {
+      setErrorMessage("コメントを入力してください。")
+      return
+    }
+
+    setIsUpdatingReviewId(reviewId)
+
+    const { error } = await supabase
+      .from("reviews")
+      .update({
+        rating: parsedRating,
+        comment: editReviewComment.trim(),
+      })
+      .eq("id", reviewId)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("レビュー更新エラー:", error.message)
+      setErrorMessage(`レビューの更新に失敗しました：${error.message}`)
+      setIsUpdatingReviewId(null)
+      return
+    }
+
+    setSuccessMessage("レビューを更新しました。")
+    setEditingReviewId(null)
+    setIsUpdatingReviewId(null)
+
+    await fetchProblem()
+  }
+
+  async function handleDeleteReview(reviewId: string) {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!userId) return
+
+    const ok = window.confirm("このレビューを削除します。よろしいですか？")
+
+    if (!ok) return
+
+    setIsDeletingReviewId(reviewId)
+
+    const { error } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", reviewId)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("レビュー削除エラー:", error.message)
+      setErrorMessage(`レビューの削除に失敗しました：${error.message}`)
+      setIsDeletingReviewId(null)
+      return
+    }
+
+    setSuccessMessage("レビューを削除しました。")
+    setIsDeletingReviewId(null)
+
+    await fetchProblem()
   }
 
   if (isLoading) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          padding: "48px 0",
-        }}
-      >
-        <div
-          style={{
-            width: "min(1100px, calc(100vw - 48px))",
-            margin: "0 auto",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "22px",
-              padding: "32px",
-              color: COLORS.muted,
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            }}
-          >
-            読み込み中...
-          </div>
-        </div>
-      </main>
+      <PageShell>
+        <SectionCard>読み込み中...</SectionCard>
+      </PageShell>
     )
   }
 
-  if (errorMessage || !problem) {
+  if (!problem) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: COLORS.paper,
-          padding: "48px 0",
-        }}
-      >
-        <div
+      <PageShell>
+        <Link
+          href="/"
           style={{
-            width: "min(1100px, calc(100vw - 48px))",
-            margin: "0 auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            marginBottom: "28px",
           }}
         >
-          <Link
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "16px",
-              fontWeight: 900,
-              textDecoration: "none",
-              marginBottom: "24px",
-            }}
-          >
-            <BackIcon />
-            問題一覧へ戻る
-          </Link>
+          <BackIcon />
+          一覧へ戻る
+        </Link>
 
-          <div
-            style={{
-              backgroundColor: COLORS.surface,
-              border: `1px solid ${COLORS.line}`,
-              borderRadius: "22px",
-              padding: "32px",
-              color: COLORS.danger,
-              boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            }}
-          >
-            {errorMessage ?? "問題が見つかりませんでした。"}
-          </div>
-        </div>
-      </main>
+        <MessageBox type="error">{errorMessage || "問題が見つかりませんでした。"}</MessageBox>
+      </PageShell>
     )
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: COLORS.paper,
-        color: COLORS.text,
-        padding: "32px 0 72px",
-      }}
-    >
-      <div
+    <PageShell>
+      <nav
         style={{
-          width: "min(1100px, calc(100vw - 48px))",
-          margin: "0 auto",
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
-        {/* =====================================================
-          戻る導線・パンくず
-        ===================================================== */}
-        <nav
+        <button
+          type="button"
+          onClick={() => router.back()}
           style={{
-            marginBottom: "28px",
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            flexWrap: "wrap",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
           }}
         >
-          <Link
-            href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              color: COLORS.teal,
-              fontSize: "17px",
-              fontWeight: 900,
-              textDecoration: "none",
-            }}
-          >
-            <BackIcon />
-            問題一覧へ戻る
-          </Link>
+          <BackIcon />
+          戻る
+        </button>
 
-          <div
-            style={{
-              color: COLORS.slate,
-              fontSize: "15px",
-              fontWeight: 700,
-            }}
-          >
-            問ログ / 問題詳細
-          </div>
-        </nav>
-
-        {/* =====================================================
-          問題ヘッダーカード
-        ===================================================== */}
-        <section
+        <div
           style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "24px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.10)",
-            padding: "36px",
-            marginBottom: "30px",
+            color: COLORS.slate,
+            fontSize: "15px",
+            fontWeight: 700,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: "24px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ flex: "1 1 620px" }}>
-              <p
-                style={{
-                  margin: 0,
-                  color: COLORS.teal,
-                  fontSize: "14px",
-                  fontWeight: 900,
-                  letterSpacing: "0.14em",
-                }}
-              >
-                PROBLEM DETAIL
-              </p>
+          問ログ / 問題詳細
+        </div>
+      </nav>
 
-              <h1
-                style={{
-                  margin: "14px 0 0",
-                  color: COLORS.navy,
-                  fontSize: "40px",
-                  lineHeight: 1.35,
-                  fontWeight: 900,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                {problem.title}
-              </h1>
+      {(errorMessage || successMessage) && (
+        <div style={{ marginBottom: "22px" }}>
+          {errorMessage && <MessageBox type="error">{errorMessage}</MessageBox>}
+          {successMessage && <MessageBox type="success">{successMessage}</MessageBox>}
+        </div>
+      )}
 
-              <p
-                style={{
-                  margin: "18px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "18px",
-                  fontWeight: 700,
-                }}
-              >
-                投稿日: {formatDate(problem.created_at)}
-              </p>
-            </div>
-
-            <div
-              style={{
-                flex: "0 0 auto",
-                backgroundColor: COLORS.tealPanel,
-                borderRadius: "18px",
-                padding: "20px 22px",
-                minWidth: "230px",
-              }}
-            >
-              <RatingSummary average={average} count={reviews.length} />
-            </div>
+      <SectionCard
+        style={{
+          padding: "36px",
+          borderRadius: RADII.xxl,
+          boxShadow: SHADOWS.cardStrong,
+          marginBottom: "28px",
+        }}
+      >
+        {problem.user_id && (
+          <div style={{ marginBottom: "24px" }}>
+            <UserMiniBadge userId={problem.user_id} size="md" showEmail={false} />
           </div>
+        )}
 
-          {problem.tags.length > 0 && (
+        {isEditingProblem ? (
+          <div>
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                タイトル
+              </label>
+
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "52px",
+                  borderRadius: RADII.md,
+                  border: `1px solid ${COLORS.lineStrong}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.text,
+                  fontSize: "17px",
+                  fontWeight: 800,
+                  padding: "0 16px",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                問題内容
+              </label>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  lineHeight: 1.7,
+                }}
+              >
+                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                で囲んでください。保存前にプレビューで確認できます。
+              </p>
+
+              <LatexTemplateSelector onInsert={insertEditProblemLatexTemplate} />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "14px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <ModeButton
+                  active={editContentMode === "input"}
+                  onClick={() => setEditContentMode("input")}
+                >
+                  入力
+                </ModeButton>
+
+                <ModeButton
+                  active={editContentMode === "preview"}
+                  onClick={() => setEditContentMode("preview")}
+                >
+                  プレビュー
+                </ModeButton>
+              </div>
+
+              {editContentMode === "input" ? (
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    resize: "vertical",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    minHeight: "210px",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
+                  }}
+                >
+                  {editContent.trim() ? (
+                    <ProblemMarkdown content={editContent} />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.muted,
+                        fontSize: "15px",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      ここに問題内容のプレビューが表示されます。
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <LatexHelpChips />
+            </div>
+
             <div
               style={{
                 display: "flex",
+                gap: "10px",
                 flexWrap: "wrap",
-                gap: "12px",
-                marginTop: "30px",
+                justifyContent: "flex-end",
               }}
             >
-              {problem.tags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleTagClick(tag)}
-                  style={{
-                    border: "none",
-                    borderRadius: "999px",
-                    backgroundColor: COLORS.tagBg,
-                    color: COLORS.tagText,
-                    padding: "10px 20px",
-                    fontSize: "17px",
-                    fontWeight: 900,
-                    cursor: "pointer",
+              <ActionButton
+                onClick={() => {
+                  setIsEditingProblem(false)
+                  setEditTitle(problem.title)
+                  setEditContent(problem.content ?? "")
+                  setEditContentMode("input")
+                }}
+              >
+                キャンセル
+              </ActionButton>
+
+              <ActionButton
+                variant="primary"
+                onClick={handleUpdateProblem}
+                disabled={isUpdatingProblem}
+              >
+                {isUpdatingProblem ? "保存中..." : "保存する"}
+              </ActionButton>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "40px",
+                lineHeight: 1.35,
+                fontWeight: 900,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              {problem.title}
+            </h1>
+
+            <div
+              style={{
+                marginTop: "22px",
+                display: "flex",
+                alignItems: "center",
+                gap: "18px",
+                flexWrap: "wrap",
+                color: COLORS.slate,
+                fontSize: "16px",
+                fontWeight: 700,
+              }}
+            >
+              <span>投稿日: {formatDate(problem.created_at)}</span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <StarRating value={averageRating} size={22} />
+                <strong style={{ color: COLORS.navy, fontSize: "22px" }}>
+                  {roundedAverage.toFixed(1)}
+                </strong>
+              </span>
+
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "7px",
+                }}
+              >
+                <CommentIcon size={21} />
+                {reviews.length}件
+              </span>
+            </div>
+
+            {problem.tags.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                  marginTop: "24px",
+                }}
+              >
+                {problem.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/?q=${encodeURIComponent(tag)}`}
+                    style={{
+                      borderRadius: RADII.pill,
+                      backgroundColor: COLORS.tagBg,
+                      color: COLORS.tagText,
+                      padding: "9px 18px",
+                      fontSize: "15px",
+                      fontWeight: 900,
+                      textDecoration: "none",
+                    }}
+                  >
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {isProblemOwner && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginTop: "26px",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <ActionButton
+                  onClick={() => {
+                    setEditTitle(problem.title)
+                    setEditContent(problem.content ?? "")
+                    setEditContentMode("input")
+                    setIsEditingProblem(true)
                   }}
                 >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
+                  <EditIcon />
+                  問題を編集
+                </ActionButton>
 
-        {/* =====================================================
-          問題本文カード
-        ===================================================== */}
-        <section
+                <ActionButton
+                  variant="danger"
+                  onClick={handleDeleteProblem}
+                  disabled={isDeletingProblem}
+                >
+                  <TrashIcon />
+                  {isDeletingProblem ? "削除中..." : "問題を削除"}
+                </ActionButton>
+              </div>
+            )}
+          </>
+        )}
+      </SectionCard>
+
+      {!isEditingProblem && (
+        <SectionCard
           style={{
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.line}`,
-            borderRadius: "24px",
-            boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-            padding: "36px",
-            marginBottom: "30px",
+            padding: "34px 36px",
+            marginBottom: "28px",
           }}
         >
           <h2
             style={{
-              margin: 0,
+              margin: "0 0 22px",
               color: COLORS.navy,
               fontSize: "28px",
               fontWeight: 900,
@@ -754,134 +1064,153 @@ export default function ProblemDetailPage() {
           </h2>
 
           {problem.content ? (
-            <p
-              style={{
-                margin: "24px 0 0",
-                color: COLORS.text,
-                fontSize: "21px",
-                lineHeight: 1.9,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {problem.content}
-            </p>
+            <ProblemMarkdown content={problem.content} />
           ) : (
             <p
               style={{
-                margin: "24px 0 0",
+                margin: 0,
                 color: COLORS.muted,
-                fontSize: "18px",
+                fontSize: "17px",
                 lineHeight: 1.8,
               }}
             >
               本文はまだ登録されていません。
             </p>
           )}
-        </section>
+        </SectionCard>
+      )}
 
-        {/* =====================================================
-          レビュー投稿カード / ログイン誘導カード
-        ===================================================== */}
-        <section
+      <SectionCard
+        variant="teal"
+        style={{
+          borderLeft: `6px solid ${COLORS.teal}`,
+          borderRadius: RADII.xl,
+          padding: "30px 34px",
+          marginBottom: "32px",
+        }}
+      >
+        <h2
           style={{
-            backgroundColor: userId ? COLORS.tealPanel : COLORS.surface,
-            border: `1px solid ${userId ? "#B8DCD5" : COLORS.line}`,
-            borderLeft: `6px solid ${userId ? COLORS.teal : COLORS.navy}`,
-            borderRadius: "20px",
-            padding: "32px 34px",
-            marginBottom: "38px",
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "28px",
+            fontWeight: 900,
           }}
         >
-          {userId ? (
-            <form onSubmit={handleSubmitReview}>
-              <h2
+          レビューを書く
+        </h2>
+
+        {userId ? (
+          <>
+            <SectionCard
+              style={{
+                marginTop: "18px",
+                marginBottom: "22px",
+                padding: "16px 18px",
+                borderRadius: RADII.lg,
+                boxShadow: "none",
+              }}
+            >
+              <UserMiniBadge
+                userId={userId}
+                email={userEmail}
+                userName={userName}
+                size="md"
+                showEmail
+              />
+            </SectionCard>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
                 style={{
-                  margin: 0,
+                  display: "block",
                   color: COLORS.navy,
-                  fontSize: "28px",
+                  fontSize: "16px",
                   fontWeight: 900,
+                  marginBottom: "8px",
                 }}
               >
-                レビューを書く
-              </h2>
+                評価
+              </label>
+
+              <select
+                value={rating}
+                onChange={(e) => setRating(e.target.value)}
+                style={{
+                  width: "160px",
+                  height: "48px",
+                  borderRadius: RADII.sm,
+                  border: `1px solid ${COLORS.lineStrong}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.navy,
+                  fontSize: "17px",
+                  fontWeight: 900,
+                  padding: "0 12px",
+                  outline: "none",
+                }}
+              >
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "18px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                コメント
+              </label>
 
               <p
                 style={{
-                  margin: "10px 0 0",
+                  margin: "0 0 12px",
                   color: COLORS.slate,
-                  fontSize: "16px",
+                  fontSize: "14px",
+                  fontWeight: 700,
                   lineHeight: 1.7,
                 }}
               >
-                ログイン中: {userEmail}
+                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                で囲んでください。投稿前にプレビューで確認できます。
               </p>
 
-              <div style={{ marginTop: "26px" }}>
-                <p
-                  style={{
-                    margin: "0 0 12px",
-                    color: COLORS.navy,
-                    fontSize: "17px",
-                    fontWeight: 900,
-                  }}
-                >
-                  評価
-                </p>
+              <LatexTemplateSelector onInsert={insertCommentLatexTemplate} />
 
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "10px",
-                  }}
-                >
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setRating(value)}
-                      style={{
-                        minWidth: "58px",
-                        height: "48px",
-                        borderRadius: "12px",
-                        border: `1px solid ${rating === value ? COLORS.teal : COLORS.lineStrong}`,
-                        backgroundColor: rating === value ? COLORS.teal : COLORS.surface,
-                        color: rating === value ? "#FFFFFF" : COLORS.navy,
-                        fontSize: "18px",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "14px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <ModeButton active={commentMode === "input"} onClick={() => setCommentMode("input")}>
+                  入力
+                </ModeButton>
 
-                <div style={{ marginTop: "14px" }}>
-                  <StarRating value={rating} size={22} />
-                </div>
+                <ModeButton
+                  active={commentMode === "preview"}
+                  onClick={() => setCommentMode("preview")}
+                >
+                  プレビュー
+                </ModeButton>
               </div>
 
-              <div style={{ marginTop: "24px" }}>
-                <label
-                  htmlFor="review-comment"
-                  style={{
-                    display: "block",
-                    color: COLORS.navy,
-                    fontSize: "17px",
-                    fontWeight: 900,
-                    marginBottom: "12px",
-                  }}
-                >
-                  コメント
-                </label>
-
+              {commentMode === "input" ? (
                 <textarea
-                  id="review-comment"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder="この問題の良さ、難しさ、解法の見どころなどを書いてください。"
                   rows={5}
+                  placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
                   style={{
                     width: "100%",
                     resize: "vertical",
@@ -890,174 +1219,167 @@ export default function ProblemDetailPage() {
                     backgroundColor: COLORS.surface,
                     color: COLORS.text,
                     fontSize: "17px",
-                    lineHeight: 1.7,
+                    lineHeight: 1.8,
                     padding: "16px 18px",
                     outline: "none",
                   }}
                 />
-              </div>
-
-              {submitMessage && (
-                <p
+              ) : (
+                <div
                   style={{
-                    margin: "16px 0 0",
-                    color: submitMessage.includes("失敗") ? COLORS.danger : COLORS.teal,
-                    fontSize: "15px",
-                    fontWeight: 800,
+                    minHeight: "150px",
+                    borderRadius: "16px",
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "17px",
+                    lineHeight: 1.8,
+                    padding: "16px 18px",
                   }}
                 >
-                  {submitMessage}
-                </p>
+                  {comment.trim() ? (
+                    <ProblemMarkdown content={comment} />
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        color: COLORS.muted,
+                        fontSize: "15px",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      ここにコメントのプレビューが表示されます。
+                    </p>
+                  )}
+                </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                style={{
-                  marginTop: "24px",
-                  width: "100%",
-                  minHeight: "64px",
-                  border: "none",
-                  borderRadius: "16px",
-                  backgroundColor: COLORS.navy,
-                  color: "#FFFFFF",
-                  fontSize: "21px",
-                  fontWeight: 900,
-                  cursor: isSubmitting ? "not-allowed" : "pointer",
-                  opacity: isSubmitting ? 0.7 : 1,
-                }}
-              >
-                {isSubmitting ? "投稿中..." : "レビューを投稿する"}
-              </button>
-            </form>
-          ) : (
-            <div
+              <LatexHelpChips />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmitReview}
+              disabled={isSubmitting}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "22px",
-                flexWrap: "wrap",
+                width: "100%",
+                minHeight: "62px",
+                border: "none",
+                borderRadius: RADII.md,
+                backgroundColor: COLORS.navy,
+                color: "#FFFFFF",
+                fontSize: "20px",
+                fontWeight: 900,
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.7 : 1,
               }}
             >
-              <div>
-                <h2
-                  style={{
-                    margin: 0,
-                    color: COLORS.navy,
-                    fontSize: "26px",
-                    fontWeight: 900,
-                  }}
-                >
-                  レビューを書くにはログインが必要です
-                </h2>
-
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: COLORS.slate,
-                    fontSize: "16px",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  ログインすると、この問題に評価とコメントを投稿できます。
-                </p>
-              </div>
-
-              <Link
-                href="/login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minHeight: "54px",
-                  padding: "0 24px",
-                  borderRadius: "14px",
-                  backgroundColor: COLORS.navy,
-                  color: "#FFFFFF",
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  textDecoration: "none",
-                }}
-              >
-                ログイン / 新規登録
-              </Link>
-            </div>
-          )}
-        </section>
-
-        {/* =====================================================
-          レビュー一覧
-        ===================================================== */}
-        <section>
-          <div
+              {isSubmitting ? "投稿中..." : "レビューを投稿する"}
+            </button>
+          </>
+        ) : (
+          <SectionCard
             style={{
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: "16px",
-              flexWrap: "wrap",
-              marginBottom: "24px",
+              marginTop: "18px",
+              padding: "24px",
+              borderRadius: RADII.lg,
+              boxShadow: "none",
             }}
           >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  color: COLORS.navy,
-                  fontSize: "32px",
-                  fontWeight: 900,
-                }}
-              >
-                レビュー一覧
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: COLORS.slate,
-                  fontSize: "16px",
-                  fontWeight: 700,
-                }}
-              >
-                {reviews.length}件のレビュー
-              </p>
-            </div>
-
-            <RatingSummary average={average} count={reviews.length} />
-          </div>
-
-          {sortedReviews.length === 0 ? (
-            <div
+            <p
               style={{
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: "22px",
-                padding: "32px",
-                color: COLORS.muted,
-                fontSize: "17px",
+                margin: 0,
+                color: COLORS.slate,
+                fontSize: "16px",
                 lineHeight: 1.8,
-                boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
+                fontWeight: 700,
               }}
             >
-              まだレビューはありません。最初のレビューを投稿してみましょう。
-            </div>
-          ) : (
-            <div
+              レビューを書くにはログインが必要です。
+            </p>
+
+            <Link
+              href="/login"
               style={{
-                display: "grid",
-                gap: "22px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "50px",
+                padding: "0 20px",
+                marginTop: "18px",
+                borderRadius: RADII.md,
+                backgroundColor: COLORS.navy,
+                color: "#FFFFFF",
+                textDecoration: "none",
+                fontSize: "16px",
+                fontWeight: 900,
               }}
             >
-              {sortedReviews.map((review) => (
-                <article
+              ログイン / 新規登録
+            </Link>
+          </SectionCard>
+        )}
+      </SectionCard>
+
+      <section>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "22px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "30px",
+                fontWeight: 900,
+              }}
+            >
+              レビュー一覧
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              {reviews.length}件のレビュー
+            </p>
+          </div>
+        </div>
+
+        {reviews.length === 0 ? (
+          <SectionCard
+            style={{
+              padding: "30px",
+              color: COLORS.muted,
+              fontSize: "16px",
+              lineHeight: 1.8,
+            }}
+          >
+            まだレビューはありません。最初のレビューを書いてみましょう。
+          </SectionCard>
+        ) : (
+          <div style={{ display: "grid", gap: "18px" }}>
+            {reviews.map((review) => {
+              const isReviewOwner = Boolean(userId && review.user_id === userId)
+              const isEditingThisReview = editingReviewId === review.id
+
+              return (
+                <SectionCard
                   key={review.id}
                   style={{
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${COLORS.line}`,
-                    borderRadius: "22px",
-                    boxShadow: "0 4px 14px rgba(30, 58, 95, 0.08)",
-                    padding: "28px 30px",
+                    padding: "24px 26px",
+                    borderRadius: "20px",
                   }}
                 >
                   <div
@@ -1065,82 +1387,269 @@ export default function ProblemDetailPage() {
                       display: "flex",
                       alignItems: "flex-start",
                       justifyContent: "space-between",
-                      gap: "18px",
+                      gap: "16px",
                       flexWrap: "wrap",
                     }}
                   >
-                    <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "14px",
+                      }}
+                    >
+                      {review.user_id && (
+                        <UserMiniBadge userId={review.user_id} size="sm" showEmail={false} />
+                      )}
+
+                      {!isEditingThisReview && (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                          }}
+                        >
+                          <StarRating value={review.rating} size={20} />
+                          <span
+                            style={{
+                              color: COLORS.navy,
+                              fontSize: "20px",
+                              fontWeight: 900,
+                            }}
+                          >
+                            {review.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: 0,
+                          color: COLORS.muted,
+                          fontSize: "14px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {formatDate(review.created_at)}
+                      </p>
+
+                      {isReviewOwner && !isEditingThisReview && (
+                        <>
+                          <ActionButton onClick={() => startEditReview(review)}>
+                            <EditIcon />
+                            編集
+                          </ActionButton>
+
+                          <ActionButton
+                            variant="danger"
+                            onClick={() => handleDeleteReview(review.id)}
+                            disabled={isDeletingReviewId === review.id}
+                          >
+                            <TrashIcon />
+                            {isDeletingReviewId === review.id ? "削除中..." : "削除"}
+                          </ActionButton>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditingThisReview ? (
+                    <div style={{ marginTop: "20px" }}>
+                      <div style={{ marginBottom: "18px" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            color: COLORS.navy,
+                            fontSize: "16px",
+                            fontWeight: 900,
+                            marginBottom: "8px",
+                          }}
+                        >
+                          評価
+                        </label>
+
+                        <select
+                          value={editReviewRating}
+                          onChange={(e) => setEditReviewRating(e.target.value)}
+                          style={{
+                            width: "160px",
+                            height: "48px",
+                            borderRadius: RADII.sm,
+                            border: `1px solid ${COLORS.lineStrong}`,
+                            backgroundColor: COLORS.surface,
+                            color: COLORS.navy,
+                            fontSize: "17px",
+                            fontWeight: 900,
+                            padding: "0 12px",
+                            outline: "none",
+                          }}
+                        >
+                          <option value="5">5</option>
+                          <option value="4">4</option>
+                          <option value="3">3</option>
+                          <option value="2">2</option>
+                          <option value="1">1</option>
+                        </select>
+                      </div>
+
+                      <div style={{ marginBottom: "18px" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            color: COLORS.navy,
+                            fontSize: "16px",
+                            fontWeight: 900,
+                            marginBottom: "8px",
+                          }}
+                        >
+                          コメント
+                        </label>
+
+                        <LatexTemplateSelector onInsert={insertEditReviewLatexTemplate} />
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            marginBottom: "14px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <ModeButton
+                            active={editReviewMode === "input"}
+                            onClick={() => setEditReviewMode("input")}
+                          >
+                            入力
+                          </ModeButton>
+
+                          <ModeButton
+                            active={editReviewMode === "preview"}
+                            onClick={() => setEditReviewMode("preview")}
+                          >
+                            プレビュー
+                          </ModeButton>
+                        </div>
+
+                        {editReviewMode === "input" ? (
+                          <textarea
+                            value={editReviewComment}
+                            onChange={(e) => setEditReviewComment(e.target.value)}
+                            rows={5}
+                            placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
+                            style={{
+                              width: "100%",
+                              resize: "vertical",
+                              borderRadius: "16px",
+                              border: `1px solid ${COLORS.lineStrong}`,
+                              backgroundColor: COLORS.surface,
+                              color: COLORS.text,
+                              fontSize: "17px",
+                              lineHeight: 1.8,
+                              padding: "16px 18px",
+                              outline: "none",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              minHeight: "150px",
+                              borderRadius: "16px",
+                              border: `1px solid ${COLORS.lineStrong}`,
+                              backgroundColor: COLORS.surface,
+                              color: COLORS.text,
+                              fontSize: "17px",
+                              lineHeight: 1.8,
+                              padding: "16px 18px",
+                            }}
+                          >
+                            {editReviewComment.trim() ? (
+                              <ProblemMarkdown content={editReviewComment} />
+                            ) : (
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: COLORS.muted,
+                                  fontSize: "15px",
+                                  lineHeight: 1.8,
+                                }}
+                              >
+                                ここにコメントのプレビューが表示されます。
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <LatexHelpChips />
+                      </div>
+
                       <div
                         style={{
                           display: "flex",
-                          alignItems: "center",
                           gap: "10px",
-                          color: COLORS.slate,
-                          fontSize: "15px",
-                          fontWeight: 800,
+                          flexWrap: "wrap",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        <UserIcon size={20} />
-                        <span>{review.username ?? "匿名ユーザー"}</span>
-                      </div>
-
-                      <div style={{ marginTop: "12px" }}>
-                        <StarRating value={review.rating} size={19} />
-                        <span
-                          style={{
-                            marginLeft: "10px",
-                            color: COLORS.navy,
-                            fontSize: "18px",
-                            fontWeight: 900,
+                        <ActionButton
+                          onClick={() => {
+                            setEditingReviewId(null)
+                            setEditReviewComment("")
+                            setEditReviewRating("5")
+                            setEditReviewMode("input")
                           }}
                         >
-                          {review.rating.toFixed(1)}
-                        </span>
+                          キャンセル
+                        </ActionButton>
+
+                        <ActionButton
+                          variant="primary"
+                          onClick={() => handleUpdateReview(review.id)}
+                          disabled={isUpdatingReviewId === review.id}
+                        >
+                          {isUpdatingReviewId === review.id ? "保存中..." : "保存する"}
+                        </ActionButton>
                       </div>
                     </div>
-
-                    <p
+                  ) : review.comment ? (
+                    <div
                       style={{
-                        margin: 0,
-                        color: COLORS.muted,
-                        fontSize: "14px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {formatDate(review.created_at)}
-                    </p>
-                  </div>
-
-                  {review.comment ? (
-                    <p
-                      style={{
-                        margin: "20px 0 0",
+                        marginTop: "18px",
                         color: COLORS.text,
-                        fontSize: "18px",
-                        lineHeight: 1.85,
-                        whiteSpace: "pre-wrap",
+                        fontSize: "17px",
+                        lineHeight: 1.8,
                       }}
                     >
-                      {review.comment}
-                    </p>
+                      <ProblemMarkdown content={review.comment} />
+                    </div>
                   ) : (
                     <p
                       style={{
-                        margin: "20px 0 0",
+                        margin: "18px 0 0",
                         color: COLORS.muted,
-                        fontSize: "16px",
+                        fontSize: "15px",
                         lineHeight: 1.8,
                       }}
                     >
                       コメントなし
                     </p>
                   )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
+                </SectionCard>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </PageShell>
   )
 }

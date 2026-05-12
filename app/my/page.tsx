@@ -1,11 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import RandomPixelAvatar from "@/components/RandomPixelAvatar"
+import PageShell from "@/components/ui/PageShell"
+import SectionCard from "@/components/ui/SectionCard"
+import MessageBox from "@/components/ui/MessageBox"
+import StarRating from "@/components/ui/StarRating"
+import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 /* =========================================================
-  型定義：自分の投稿した問題データ
+  型定義
 ========================================================= */
 type MyProblem = {
   id: string
@@ -18,72 +24,105 @@ type MyProblem = {
   ratingSum: number
 }
 
-/* =========================================================
-  型定義：自分が書いたレビューデータ
-========================================================= */
 type MyReview = {
   id: string
   problem_id: string
   problem_title: string
   rating: number
-  comment: string
+  comment: string | null
   created_at: string
 }
 
+type TagRow = {
+  name: string | null
+}
+
+type ProblemTagRow = {
+  tags: TagRow | TagRow[] | null
+}
+
+type ReviewRatingRow = {
+  rating: number | string | null
+}
+
+type ProblemRow = {
+  id: string
+  title: string
+  content: string | null
+  created_at: string
+  problem_tags: ProblemTagRow[] | null
+  reviews: ReviewRatingRow[] | null
+}
+
+type ReviewRow = {
+  id: string
+  problem_id: string
+  rating: number | string | null
+  comment: string | null
+  created_at: string
+  problems: { title: string | null } | { title: string | null }[] | null
+}
+
 /* =========================================================
-  星評価コンポーネント：平均評価を星で表示する
+  アイコン
 ========================================================= */
-function StarRating({ value }: { value: number }) {
+function BackIcon({ size = 22 }: { size?: number }) {
   return (
-    <span style={{ display: "inline-flex", gap: "2px", verticalAlign: "middle" }}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(100, (value - (star - 1)) * 100))
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M12 19l-7-7 7-7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
-        return (
-          <span
-            key={star}
-            style={{
-              position: "relative",
-              display: "inline-block",
-              width: "16px",
-              height: "16px",
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" style={{ color: "#d1d5db" }}>
-              <path
-                fill="currentColor"
-                d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-              />
-            </svg>
+function CommentIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
-            <span
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: `${fillPercent}%`,
-                height: "16px",
-                overflow: "hidden",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" style={{ color: "#f59e0b" }}>
-                <path
-                  fill="currentColor"
-                  d="M12 2.5l2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.6l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2.5z"
-                />
-              </svg>
-            </span>
-          </span>
-        )
-      })}
-    </span>
+function PenIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
 /* =========================================================
-  補助関数：Supabaseから返るproblems情報から問題タイトルを取り出す
+  補助関数
 ========================================================= */
-function getProblemTitle(problems: any): string {
+function formatDate(value: string | null) {
+  if (!value) return ""
+  return new Date(value).toISOString().slice(0, 10)
+}
+
+function truncateText(text: string | null, length: number) {
+  if (!text) return ""
+  return text.length > length ? `${text.slice(0, length)}...` : text
+}
+
+function getProblemTitle(problems: ReviewRow["problems"]): string {
   if (Array.isArray(problems)) {
     return problems[0]?.title ?? "問題タイトル不明"
   }
@@ -91,40 +130,146 @@ function getProblemTitle(problems: any): string {
   return problems?.title ?? "問題タイトル不明"
 }
 
+function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
+  return (problemTags ?? [])
+    .map((pt) => {
+      const tags = pt.tags
+      const tag = Array.isArray(tags) ? tags[0] : tags
+      return tag?.name ?? ""
+    })
+    .filter(Boolean)
+}
+
+function getLevelInfo(activityScore: number) {
+  const levels = [
+    { level: 1, title: "はじめの投稿者", min: 0, next: 50 },
+    { level: 2, title: "問題探索者", min: 50, next: 130 },
+    { level: 3, title: "レビュー職人", min: 130, next: 260 },
+    { level: 4, title: "数学案内人", min: 260, next: 460 },
+    { level: 5, title: "問ログマスター", min: 460, next: null },
+  ]
+
+  const current = [...levels].reverse().find((item) => activityScore >= item.min) ?? levels[0]
+
+  if (current.next === null) {
+    return {
+      ...current,
+      progress: 100,
+      remaining: 0,
+      maxLevel: true,
+    }
+  }
+
+  const span = current.next - current.min
+  const progress = Math.max(0, Math.min(100, ((activityScore - current.min) / span) * 100))
+  const remaining = Math.max(0, current.next - activityScore)
+
+  return {
+    ...current,
+    progress,
+    remaining,
+    maxLevel: false,
+  }
+}
+
 /* =========================================================
-  マイページ：自分の投稿・レビュー・評価集計を表示
+  小部品
+========================================================= */
+function StatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string | number
+  sub?: string
+}) {
+  return (
+    <SectionCard
+      style={{
+        padding: "22px 24px",
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          color: COLORS.slate,
+          fontSize: "14px",
+          fontWeight: 900,
+        }}
+      >
+        {label}
+      </p>
+
+      <div
+        style={{
+          marginTop: "10px",
+          color: COLORS.navy,
+          fontSize: "34px",
+          lineHeight: 1,
+          fontWeight: 900,
+          letterSpacing: "-0.03em",
+        }}
+      >
+        {value}
+      </div>
+
+      {sub && (
+        <p
+          style={{
+            margin: "10px 0 0",
+            color: COLORS.muted,
+            fontSize: "13px",
+            fontWeight: 700,
+            lineHeight: 1.6,
+          }}
+        >
+          {sub}
+        </p>
+      )}
+    </SectionCard>
+  )
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <SectionCard
+      style={{
+        padding: "32px",
+        color: COLORS.muted,
+        fontSize: "16px",
+        lineHeight: 1.8,
+      }}
+    >
+      {children}
+    </SectionCard>
+  )
+}
+
+/* =========================================================
+  マイページ
 ========================================================= */
 export default function MyPage() {
-  /* ---------------------------------------------------------
-    state：ログインユーザー情報
-  --------------------------------------------------------- */
   const [userId, setUserId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
 
-  /* ---------------------------------------------------------
-    state：自分の投稿一覧・自分のレビュー一覧・画面状態
-  --------------------------------------------------------- */
   const [myProblems, setMyProblems] = useState<MyProblem[]>([])
   const [myReviews, setMyReviews] = useState<MyReview[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
 
-  /* ---------------------------------------------------------
-    初期表示：ログインユーザー、自分の投稿、自分のレビューを取得
-  --------------------------------------------------------- */
   useEffect(() => {
     async function fetchMyPageData() {
       setIsLoading(true)
       setErrorMessage("")
 
-      /* ---------------------------------------------------------
-        Auth取得：現在ログインしているユーザーを取得
-      --------------------------------------------------------- */
       const { data: userData, error: userError } = await supabase.auth.getUser()
 
       if (userError || !userData.user) {
         setUserId(null)
         setEmail(null)
+        setUserName(null)
         setMyProblems([])
         setMyReviews([])
         setIsLoading(false)
@@ -135,9 +280,14 @@ export default function MyPage() {
       setUserId(user.id)
       setEmail(user.email ?? null)
 
-      /* ---------------------------------------------------------
-        DB取得：自分が投稿した問題・タグ・レビュー評価を取得
-      --------------------------------------------------------- */
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      setUserName(profileData?.username ?? null)
+
       const { data: problemsData, error: problemsError } = await supabase
         .from("problems")
         .select(`
@@ -162,34 +312,32 @@ export default function MyPage() {
         return
       }
 
-      const nextProblems: MyProblem[] = (problemsData ?? []).map((p: any) => {
-        const reviews = p.reviews ?? []
-        const reviewCount = reviews.length
+      const nextProblems: MyProblem[] = ((problemsData ?? []) as unknown as ProblemRow[]).map(
+        (p) => {
+          const reviews = p.reviews ?? []
+          const ratings = reviews
+            .map((r) => Number(r.rating))
+            .filter((rating) => Number.isFinite(rating))
 
-        const ratingSum = reviews.reduce(
-          (sum: number, r: { rating: number }) => sum + r.rating,
-          0
-        )
+          const reviewCount = ratings.length
+          const ratingSum = ratings.reduce((sum, rating) => sum + rating, 0)
+          const average = reviewCount === 0 ? 0 : ratingSum / reviewCount
 
-        const average = reviewCount === 0 ? 0 : ratingSum / reviewCount
-
-        return {
-          id: p.id,
-          title: p.title,
-          content: p.content,
-          created_at: p.created_at,
-          tags: (p.problem_tags ?? []).map((pt: any) => pt.tags.name),
-          average,
-          reviewCount,
-          ratingSum,
+          return {
+            id: p.id,
+            title: p.title,
+            content: p.content,
+            created_at: p.created_at,
+            tags: extractTagNames(p.problem_tags),
+            average,
+            reviewCount,
+            ratingSum,
+          }
         }
-      })
+      )
 
       setMyProblems(nextProblems)
 
-      /* ---------------------------------------------------------
-        DB取得：自分が書いたレビュー一覧を取得
-      --------------------------------------------------------- */
       const { data: reviewsData, error: reviewsError } = await supabase
         .from("reviews")
         .select(`
@@ -212,14 +360,16 @@ export default function MyPage() {
         return
       }
 
-      const nextReviews: MyReview[] = (reviewsData ?? []).map((review: any) => ({
-        id: review.id,
-        problem_id: review.problem_id,
-        problem_title: getProblemTitle(review.problems),
-        rating: review.rating,
-        comment: review.comment,
-        created_at: review.created_at,
-      }))
+      const nextReviews: MyReview[] = ((reviewsData ?? []) as unknown as ReviewRow[])
+        .map((review) => ({
+          id: review.id,
+          problem_id: review.problem_id,
+          problem_title: getProblemTitle(review.problems),
+          rating: Number(review.rating),
+          comment: review.comment,
+          created_at: review.created_at,
+        }))
+        .filter((review) => Number.isFinite(review.rating))
 
       setMyReviews(nextReviews)
       setIsLoading(false)
@@ -228,210 +378,702 @@ export default function MyPage() {
     fetchMyPageData()
   }, [])
 
-  /* ---------------------------------------------------------
-    投稿問題全体の評価集計
-    単純平均：各投稿問題の平均評価を投稿数で割る
-    加重平均：全レビュー評価合計を全レビュー件数で割る
-  --------------------------------------------------------- */
   const postCount = myProblems.length
 
-  const simpleAverage =
-    postCount === 0
-      ? 0
-      : myProblems.reduce((sum, problem) => sum + problem.average, 0) / postCount
+  const simpleAverage = useMemo(() => {
+    if (postCount === 0) return 0
+    return myProblems.reduce((sum, problem) => sum + problem.average, 0) / postCount
+  }, [myProblems, postCount])
 
-  const totalReviewCount = myProblems.reduce(
-    (sum, problem) => sum + problem.reviewCount,
-    0
-  )
-
-  const totalRatingSum = myProblems.reduce(
-    (sum, problem) => sum + problem.ratingSum,
-    0
-  )
-
-  const weightedAverage =
-    totalReviewCount === 0 ? 0 : totalRatingSum / totalReviewCount
+  const totalReviewCount = myProblems.reduce((sum, problem) => sum + problem.reviewCount, 0)
+  const totalRatingSum = myProblems.reduce((sum, problem) => sum + problem.ratingSum, 0)
+  const weightedAverage = totalReviewCount === 0 ? 0 : totalRatingSum / totalReviewCount
 
   const roundedSimpleAverage = Math.floor(simpleAverage * 10) / 10
   const roundedWeightedAverage = Math.floor(weightedAverage * 10) / 10
 
-  /* =========================================================
-    ローディング表示：マイページ取得中
-  ========================================================= */
+  const writtenReviewCount = myReviews.length
+  const activityScore = postCount * 10 + writtenReviewCount * 5 + totalReviewCount * 3
+  const levelInfo = getLevelInfo(activityScore)
+
   if (isLoading) {
     return (
-      <main className="p-10">
-        {/* =====================================================
-          パンくず：トップページ / マイページ
-        ===================================================== */}
-        <nav className="mb-6 text-sm text-gray-500">
-          <Link href="/" className="hover:underline">
-            学問ログ（仮）
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">マイページ</span>
-        </nav>
-
-        <p>読み込み中...</p>
-      </main>
+      <PageShell wide>
+        <SectionCard>読み込み中...</SectionCard>
+      </PageShell>
     )
   }
 
-  /* =========================================================
-    未ログイン表示：マイページにはログインが必要
-  ========================================================= */
   if (!userId) {
     return (
-      <main className="p-10">
-        {/* =====================================================
-          パンくず：トップページ / マイページ
-        ===================================================== */}
-        <nav className="mb-6 text-sm text-gray-500">
-          <Link href="/" className="hover:underline">
-            学問ログ（仮）
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">マイページ</span>
-        </nav>
-
-        <h1 className="text-2xl font-bold mb-4">マイページ</h1>
-
-        <p className="mb-4">マイページを見るにはログインしてください。</p>
-
-        <Link href="/login" className="text-blue-500 hover:underline">
-          ログイン / 新規登録へ
+      <PageShell>
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+            marginBottom: "28px",
+          }}
+        >
+          <BackIcon />
+          トップへ戻る
         </Link>
-      </main>
+
+        <SectionCard
+          style={{
+            padding: "36px",
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              color: COLORS.navy,
+              fontSize: "36px",
+              fontWeight: 900,
+            }}
+          >
+            マイページを見るにはログインが必要です
+          </h1>
+
+          <p
+            style={{
+              margin: "16px 0 0",
+              color: COLORS.slate,
+              fontSize: "17px",
+              lineHeight: 1.8,
+              fontWeight: 600,
+            }}
+          >
+            ログインすると、自分の投稿・レビュー・活動スコアを確認できます。
+          </p>
+
+          <Link
+            href="/login"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "56px",
+              padding: "0 24px",
+              marginTop: "28px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.navy,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "17px",
+              fontWeight: 900,
+            }}
+          >
+            ログイン / 新規登録
+          </Link>
+        </SectionCard>
+      </PageShell>
     )
   }
 
   return (
-    <main className="p-10">
+    <PageShell wide>
       {/* =====================================================
-        パンくず：トップページ / マイページ
+        戻る導線
       ===================================================== */}
-      <nav className="mb-6 text-sm text-gray-500">
-        <Link href="/" className="hover:underline">
-          学問ログ（仮）
+      <nav
+        style={{
+          marginBottom: "28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            color: COLORS.teal,
+            fontSize: "17px",
+            fontWeight: 900,
+            textDecoration: "none",
+          }}
+        >
+          <BackIcon />
+          トップへ戻る
         </Link>
-        <span className="mx-2">/</span>
-        <span className="text-gray-900">マイページ</span>
+
+        <div
+          style={{
+            color: COLORS.slate,
+            fontSize: "15px",
+            fontWeight: 700,
+          }}
+        >
+          問ログ / マイページ
+        </div>
       </nav>
 
       {/* =====================================================
-        ページヘッダー：ログイン中ユーザーとマイページ概要
+        ページヘッダー
       ===================================================== */}
-      <section className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">マイページ</h1>
+      <header
+        style={{
+          textAlign: "center",
+          marginBottom: "34px",
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "48px",
+            lineHeight: 1.15,
+            fontWeight: 900,
+            letterSpacing: "-0.04em",
+          }}
+        >
+          マイページ
+        </h1>
 
-        <p className="text-sm text-gray-500">
-          ログイン中：{email}
+        <p
+          style={{
+            margin: "18px 0 0",
+            color: COLORS.slate,
+            fontSize: "18px",
+            lineHeight: 1.8,
+            fontWeight: 600,
+          }}
+        >
+          自分の投稿・レビュー・活動の蓄積を確認する。
         </p>
+      </header>
+
+      {errorMessage && <MessageBox type="error">{errorMessage}</MessageBox>}
+
+      {/* =====================================================
+        プロフィールカード
+      ===================================================== */}
+      <SectionCard
+        style={{
+          padding: "34px",
+          borderRadius: RADII.xxl,
+          boxShadow: SHADOWS.cardStrong,
+          marginBottom: "28px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "28px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "22px",
+              flexWrap: "wrap",
+            }}
+          >
+            <RandomPixelAvatar
+              seed={userId}
+              size={88}
+              title={`${userName ?? "ユーザー"}のドット絵アバター`}
+            />
+
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  color: COLORS.teal,
+                  fontSize: "14px",
+                  fontWeight: 900,
+                  letterSpacing: "0.14em",
+                }}
+              >
+                MY ACTIVITY
+              </p>
+
+              <h2
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.navy,
+                  fontSize: "30px",
+                  lineHeight: 1.3,
+                  fontWeight: 900,
+                }}
+              >
+                {userName ?? "ユーザー名未設定"}
+              </h2>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.slate,
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  wordBreak: "break-all",
+                }}
+              >
+                {email}
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/profile"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "48px",
+              padding: "0 18px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.navy,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "15px",
+              fontWeight: 900,
+            }}
+          >
+            プロフィール設定
+          </Link>
+        </div>
+
+        <SectionCard
+          variant="teal"
+          style={{
+            marginTop: "28px",
+            padding: "22px 24px",
+            borderRadius: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 900,
+                }}
+              >
+                現在のレベル
+              </p>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: COLORS.navy,
+                  fontSize: "28px",
+                  fontWeight: 900,
+                  lineHeight: 1.2,
+                }}
+              >
+                Lv.{levelInfo.level} {levelInfo.title}
+              </p>
+            </div>
+
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.teal,
+                fontSize: "16px",
+                fontWeight: 900,
+              }}
+            >
+              活動スコア {activityScore}pt
+            </p>
+          </div>
+
+          <div
+            style={{
+              marginTop: "18px",
+              height: "14px",
+              borderRadius: RADII.pill,
+              backgroundColor: "rgba(255,255,255,0.78)",
+              overflow: "hidden",
+              border: `1px solid ${COLORS.line}`,
+            }}
+          >
+            <div
+              style={{
+                width: `${levelInfo.progress}%`,
+                height: "100%",
+                backgroundColor: COLORS.teal,
+                borderRadius: RADII.pill,
+              }}
+            />
+          </div>
+
+          <p
+            style={{
+              margin: "10px 0 0",
+              color: COLORS.slate,
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
+          >
+            {levelInfo.maxLevel
+              ? "最高レベルに到達しています。"
+              : `次のレベルまであと ${levelInfo.remaining}pt`}
+          </p>
+        </SectionCard>
+      </SectionCard>
+
+      {/* =====================================================
+        活動サマリー
+      ===================================================== */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: "18px",
+          marginBottom: "34px",
+        }}
+      >
+        <StatCard label="投稿問題数" value={postCount} sub="あなたが投稿した問題数" />
+        <StatCard label="受け取ったレビュー数" value={totalReviewCount} sub="自分の投稿に付いたレビュー" />
+        <StatCard label="自分が書いたレビュー" value={writtenReviewCount} sub="他の問題へのレビュー数" />
+        <StatCard
+          label="加重平均評価"
+          value={roundedWeightedAverage.toFixed(1)}
+          sub="全レビューをまとめた平均"
+        />
       </section>
 
       {/* =====================================================
-        投稿問題の評価サマリー
+        評価サマリー
       ===================================================== */}
-      <section className="mb-8">
-        <h2 className="text-xl font-bold mb-4">投稿した問題の評価サマリー</h2>
+      <SectionCard
+        style={{
+          padding: "28px 30px",
+          marginBottom: "36px",
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            color: COLORS.navy,
+            fontSize: "28px",
+            fontWeight: 900,
+          }}
+        >
+          評価サマリー
+        </h2>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* 投稿数 */}
-          <div className="border rounded p-4">
-            <p className="text-sm text-gray-500 mb-1">投稿数</p>
-            <p className="text-2xl font-bold">{postCount}件</p>
-          </div>
-
-          {/* 単純平均評価 */}
-          <div className="border rounded p-4">
-            <p className="text-sm text-gray-500 mb-1">
+        <div
+          style={{
+            marginTop: "22px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "20px",
+          }}
+        >
+          <SectionCard
+            variant="yellow"
+            style={{
+              padding: "22px",
+              borderRadius: RADII.lg,
+              boxShadow: "none",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.slate,
+                fontSize: "14px",
+                fontWeight: 900,
+              }}
+            >
               単純平均評価
             </p>
-            <div className="flex items-center gap-2">
-              <StarRating value={simpleAverage} />
-              <span className="text-lg font-bold">
+
+            <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <StarRating value={simpleAverage} size={20} />
+              <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
                 {roundedSimpleAverage.toFixed(1)}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              各投稿問題の平均評価を投稿数で割った値
-            </p>
-          </div>
 
-          {/* 加重平均評価 */}
-          <div className="border rounded p-4">
-            <p className="text-sm text-gray-500 mb-1">
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: COLORS.muted,
+                fontSize: "13px",
+                lineHeight: 1.7,
+                fontWeight: 700,
+              }}
+            >
+              各投稿問題の平均評価を、投稿数で割った値。
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            variant="teal"
+            style={{
+              padding: "22px",
+              borderRadius: RADII.lg,
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: COLORS.slate,
+                fontSize: "14px",
+                fontWeight: 900,
+              }}
+            >
               加重平均評価
             </p>
-            <div className="flex items-center gap-2">
-              <StarRating value={weightedAverage} />
-              <span className="text-lg font-bold">
+
+            <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "12px" }}>
+              <StarRating value={weightedAverage} size={20} />
+              <span style={{ color: COLORS.navy, fontSize: "24px", fontWeight: 900 }}>
                 {roundedWeightedAverage.toFixed(1)}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              全レビュー評価をレビュー件数{totalReviewCount}件で割った値
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: COLORS.muted,
+                fontSize: "13px",
+                lineHeight: 1.7,
+                fontWeight: 700,
+              }}
+            >
+              すべてのレビュー評価をまとめて計算した値。
             </p>
-          </div>
+          </SectionCard>
         </div>
-      </section>
+      </SectionCard>
 
       {/* =====================================================
         自分の投稿一覧
       ===================================================== */}
-      <section className="mb-10">
-        <h2 className="text-xl font-bold mb-4">自分の投稿した問題</h2>
+      <section style={{ marginBottom: "42px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "24px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "32px",
+                fontWeight: 900,
+              }}
+            >
+              自分の投稿
+            </h2>
 
-        {errorMessage && (
-          <p className="mb-4 text-sm text-red-500">{errorMessage}</p>
-        )}
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              投稿した問題の評価とレビュー状況
+            </p>
+          </div>
+
+          <Link
+            href="/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              minHeight: "48px",
+              padding: "0 18px",
+              borderRadius: RADII.md,
+              backgroundColor: COLORS.teal,
+              color: "#FFFFFF",
+              textDecoration: "none",
+              fontSize: "15px",
+              fontWeight: 900,
+            }}
+          >
+            <PenIcon size={18} />
+            問題を投稿する
+          </Link>
+        </div>
 
         {myProblems.length === 0 ? (
-          <div className="border rounded p-4 text-sm text-gray-500">
-            まだ投稿した問題はありません。
-          </div>
+          <EmptyState>まだ投稿した問題はありません。まずは1問投稿してみましょう。</EmptyState>
         ) : (
-          <div className="grid gap-4">
-            {myProblems.map((p) => {
-              const rounded = Math.floor(p.average * 10) / 10
+          <div style={{ display: "grid", gap: "22px" }}>
+            {myProblems.map((problem) => {
+              const roundedAverage = Math.floor(problem.average * 10) / 10
 
               return (
-                <Link key={p.id} href={`/problems/${p.id}`}>
-                  <div className="border p-4 rounded hover:bg-gray-100 cursor-pointer">
-                    {/* 投稿問題カード：タイトル */}
-                    <h3 className="text-xl font-semibold">{p.title}</h3>
+                <SectionCard
+                  key={problem.id}
+                  style={{
+                    padding: "28px 30px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "18px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ flex: "1 1 560px" }}>
+                      <Link
+                        href={`/problems/${problem.id}`}
+                        style={{
+                          color: COLORS.navy,
+                          textDecoration: "none",
+                        }}
+                      >
+                        <h3
+                          style={{
+                            margin: 0,
+                            color: COLORS.navy,
+                            fontSize: "24px",
+                            lineHeight: 1.45,
+                            fontWeight: 900,
+                          }}
+                        >
+                          {problem.title}
+                        </h3>
+                      </Link>
 
-                    {/* 投稿問題カード：投稿日 */}
-                    <p className="text-sm text-gray-500 mt-1">
-                      投稿日：{new Date(p.created_at).toISOString().slice(0, 10)}
-                    </p>
+                      <p
+                        style={{
+                          margin: "12px 0 0",
+                          color: COLORS.slate,
+                          fontSize: "15px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        投稿日: {formatDate(problem.created_at)}
+                      </p>
 
-                    {/* 投稿問題カード：平均評価 */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <StarRating value={p.average} />
-                      <span className="text-sm text-gray-500">
-                        {rounded.toFixed(1)}（{p.reviewCount}件）
-                      </span>
+                      {problem.content && (
+                        <p
+                          style={{
+                            margin: "16px 0 0",
+                            color: COLORS.text,
+                            fontSize: "16px",
+                            lineHeight: 1.8,
+                          }}
+                        >
+                          {truncateText(problem.content, 120)}
+                        </p>
+                      )}
                     </div>
 
-                    {/* 投稿問題カード：本文抜粋 */}
-                    {p.content && (
-                      <p className="text-sm text-gray-700 mt-2 line-clamp-2">
-                        {p.content}
-                      </p>
-                    )}
-
-                    {/* 投稿問題カード：タグ一覧 */}
-                    <div className="flex gap-2 mt-2 flex-wrap">
-                      {p.tags.map((tag) => (
-                        <span key={tag} className="text-sm text-gray-500">
-                          #{tag}
+                    <SectionCard
+                      variant="teal"
+                      style={{
+                        minWidth: "180px",
+                        padding: "16px",
+                        borderRadius: "16px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <StarRating value={problem.average} size={18} />
+                        <span style={{ color: COLORS.navy, fontSize: "19px", fontWeight: 900 }}>
+                          {roundedAverage.toFixed(1)}
                         </span>
+                      </div>
+
+                      <p
+                        style={{
+                          margin: "10px 0 0",
+                          color: COLORS.slate,
+                          fontSize: "14px",
+                          fontWeight: 800,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "7px",
+                        }}
+                      >
+                        <CommentIcon size={18} />
+                        {problem.reviewCount}件
+                      </p>
+                    </SectionCard>
+                  </div>
+
+                  {problem.tags.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                        marginTop: "20px",
+                      }}
+                    >
+                      {problem.tags.map((tag) => (
+                        <Link
+                          key={tag}
+                          href={`/?q=${encodeURIComponent(tag)}`}
+                          style={{
+                            borderRadius: RADII.pill,
+                            backgroundColor: COLORS.tagBg,
+                            color: COLORS.tagText,
+                            padding: "8px 16px",
+                            fontSize: "14px",
+                            fontWeight: 900,
+                            textDecoration: "none",
+                          }}
+                        >
+                          #{tag}
+                        </Link>
                       ))}
                     </div>
-                  </div>
-                </Link>
+                  )}
+
+                  <Link
+                    href={`/problems/${problem.id}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "100%",
+                      minHeight: "54px",
+                      marginTop: "22px",
+                      borderRadius: RADII.md,
+                      backgroundColor: COLORS.navy,
+                      color: "#FFFFFF",
+                      textDecoration: "none",
+                      fontSize: "16px",
+                      fontWeight: 900,
+                    }}
+                  >
+                    詳細を見る
+                  </Link>
+                </SectionCard>
               )
             })}
           </div>
@@ -442,45 +1084,131 @@ export default function MyPage() {
         自分が書いたレビュー一覧
       ===================================================== */}
       <section>
-        <h2 className="text-xl font-bold mb-4">自分が書いたレビュー</h2>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: "16px",
+            flexWrap: "wrap",
+            marginBottom: "24px",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: COLORS.navy,
+                fontSize: "32px",
+                fontWeight: 900,
+              }}
+            >
+              自分が書いたレビュー
+            </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: COLORS.slate,
+                fontSize: "15px",
+                fontWeight: 700,
+              }}
+            >
+              他の問題に残した評価とコメント
+            </p>
+          </div>
+        </div>
 
         {myReviews.length === 0 ? (
-          <div className="border rounded p-4 text-sm text-gray-500">
-            まだレビューを書いていません。
-          </div>
+          <EmptyState>まだレビューを書いていません。気になる問題にレビューを残してみましょう。</EmptyState>
         ) : (
-          <div className="grid gap-4">
+          <div style={{ display: "grid", gap: "18px" }}>
             {myReviews.map((review) => (
-              <Link key={review.id} href={`/problems/${review.problem_id}`}>
-                <div className="border p-4 rounded hover:bg-gray-100 cursor-pointer">
-                  {/* レビューカード：対象問題 */}
-                  <h3 className="text-lg font-semibold">
-                    {review.problem_title}
-                  </h3>
+              <SectionCard
+                key={review.id}
+                style={{
+                  padding: "24px 26px",
+                  borderRadius: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <Link
+                      href={`/problems/${review.problem_id}`}
+                      style={{
+                        color: COLORS.navy,
+                        textDecoration: "none",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: 0,
+                          color: COLORS.navy,
+                          fontSize: "20px",
+                          lineHeight: 1.45,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {review.problem_title}
+                      </h3>
+                    </Link>
 
-                  {/* レビューカード：投稿日 */}
-                  <p className="text-sm text-gray-500 mt-1">
-                    投稿日：{new Date(review.created_at).toISOString().slice(0, 10)}
-                  </p>
-
-                  {/* レビューカード：評価 */}
-                  <div className="flex items-center gap-2 mt-2">
-                    <StarRating value={review.rating} />
-                    <span className="text-sm text-gray-500">
-                      {review.rating.toFixed(1)}
-                    </span>
+                    <div style={{ marginTop: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <StarRating value={review.rating} size={18} />
+                      <span style={{ color: COLORS.navy, fontSize: "17px", fontWeight: 900 }}>
+                        {review.rating.toFixed(1)}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* レビューカード：コメント */}
-                  <p className="text-sm text-gray-700 mt-2">
-                    {review.comment}
+                  <p
+                    style={{
+                      margin: 0,
+                      color: COLORS.muted,
+                      fontSize: "14px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {formatDate(review.created_at)}
                   </p>
                 </div>
-              </Link>
+
+                {review.comment ? (
+                  <p
+                    style={{
+                      margin: "18px 0 0",
+                      color: COLORS.text,
+                      fontSize: "16px",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    {review.comment}
+                  </p>
+                ) : (
+                  <p
+                    style={{
+                      margin: "18px 0 0",
+                      color: COLORS.muted,
+                      fontSize: "15px",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    コメントなし
+                  </p>
+                )}
+              </SectionCard>
             ))}
           </div>
         )}
       </section>
-    </main>
+    </PageShell>
   )
 }

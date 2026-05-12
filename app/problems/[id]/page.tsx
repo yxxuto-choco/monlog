@@ -13,11 +13,17 @@ import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
+type Tag = {
+  id: string
+  name: string
+}
+
 type TagRow = {
   name: string | null
 }
 
 type ProblemTagRow = {
+  tag_id: string | null
   tags: TagRow | TagRow[] | null
 }
 
@@ -46,6 +52,7 @@ type Problem = {
   created_at: string
   user_id: string | null
   tags: string[]
+  tagIds: string[]
 }
 
 type Review = {
@@ -122,6 +129,12 @@ function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
       const tag = Array.isArray(tags) ? tags[0] : tags
       return tag?.name ?? ""
     })
+    .filter(Boolean)
+}
+
+function extractTagIds(problemTags: ProblemTagRow[] | null): string[] {
+  return (problemTags ?? [])
+    .map((pt) => pt.tag_id ?? "")
     .filter(Boolean)
 }
 
@@ -271,12 +284,29 @@ export default function ProblemDetailPage() {
   const [isUpdatingProblem, setIsUpdatingProblem] = useState(false)
   const [isDeletingProblem, setIsDeletingProblem] = useState(false)
 
+  const [allTags, setAllTags] = useState<Tag[]>([])
+  const [selectedEditTagIds, setSelectedEditTagIds] = useState<string[]>([])
+  const [newEditTagName, setNewEditTagName] = useState("")
+  const [editTagSuggestions, setEditTagSuggestions] = useState<Tag[]>([])
+
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null)
   const [editReviewRating, setEditReviewRating] = useState("5")
   const [editReviewComment, setEditReviewComment] = useState("")
   const [editReviewMode, setEditReviewMode] = useState<"input" | "preview">("input")
   const [isUpdatingReviewId, setIsUpdatingReviewId] = useState<string | null>(null)
   const [isDeletingReviewId, setIsDeletingReviewId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const keyword = newEditTagName.trim().toLowerCase()
+
+    if (!keyword) {
+      setEditTagSuggestions([])
+      return
+    }
+
+    const filtered = allTags.filter((tag) => tag.name.toLowerCase().includes(keyword))
+    setEditTagSuggestions(filtered.slice(0, 5))
+  }, [newEditTagName, allTags])
 
   function insertCommentLatexTemplate(latex: string) {
     setComment((prev) => {
@@ -300,6 +330,57 @@ export default function ProblemDetailPage() {
       return needsNewLine ? `${prev}\n\n${latex}` : latex
     })
     setEditContentMode("input")
+  }
+
+  function toggleEditTag(tagId: string) {
+    setSelectedEditTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    )
+  }
+
+  async function fetchAllTags() {
+    const { data, error } = await supabase.from("tags").select("*").order("name")
+
+    if (error) {
+      console.warn("タグ一覧取得エラー:", error.message)
+      return
+    }
+
+    setAllTags((data ?? []) as Tag[])
+  }
+
+  async function handleAddEditTag() {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    const name = newEditTagName.trim()
+    if (!name) return
+
+    const existing = allTags.find((tag) => tag.name.toLowerCase() === name.toLowerCase())
+
+    if (existing) {
+      setSelectedEditTagIds((prev) =>
+        prev.includes(existing.id) ? prev : [...prev, existing.id]
+      )
+      setNewEditTagName("")
+      setEditTagSuggestions([])
+      return
+    }
+
+    const { data, error } = await supabase.from("tags").insert({ name }).select().single()
+
+    if (error) {
+      console.error("タグ作成エラー:", error.message)
+      setErrorMessage(`タグの作成に失敗しました：${error.message}`)
+      return
+    }
+
+    const createdTag = data as Tag
+
+    setAllTags((prev) => [...prev, createdTag].sort((a, b) => a.name.localeCompare(b.name)))
+    setSelectedEditTagIds((prev) => [...prev, createdTag.id])
+    setNewEditTagName("")
+    setEditTagSuggestions([])
   }
 
   async function loadUserAndProfile() {
@@ -346,6 +427,7 @@ export default function ProblemDetailPage() {
         created_at,
         user_id,
         problem_tags (
+          tag_id,
           tags ( name )
         ),
         reviews (
@@ -375,6 +457,8 @@ export default function ProblemDetailPage() {
     }
 
     const row = data as unknown as ProblemRow
+    const tagNames = extractTagNames(row.problem_tags)
+    const tagIds = extractTagIds(row.problem_tags)
 
     setProblem({
       id: row.id,
@@ -382,11 +466,13 @@ export default function ProblemDetailPage() {
       content: row.content,
       created_at: row.created_at,
       user_id: row.user_id,
-      tags: extractTagNames(row.problem_tags),
+      tags: tagNames,
+      tagIds,
     })
 
     setEditTitle(row.title)
     setEditContent(row.content ?? "")
+    setSelectedEditTagIds(tagIds)
 
     const nextReviews: Review[] = (row.reviews ?? [])
       .map((review) => ({
@@ -409,6 +495,7 @@ export default function ProblemDetailPage() {
 
   useEffect(() => {
     loadUserAndProfile()
+    fetchAllTags()
     fetchProblem()
 
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
@@ -445,6 +532,11 @@ export default function ProblemDetailPage() {
       return
     }
 
+    if (selectedEditTagIds.length === 0) {
+      setErrorMessage("タグを1つ以上選択してください。")
+      return
+    }
+
     setIsUpdatingProblem(true)
 
     const { error } = await supabase
@@ -459,6 +551,32 @@ export default function ProblemDetailPage() {
     if (error) {
       console.error("問題更新エラー:", error.message)
       setErrorMessage(`問題の更新に失敗しました：${error.message}`)
+      setIsUpdatingProblem(false)
+      return
+    }
+
+    const { error: deleteTagError } = await supabase
+      .from("problem_tags")
+      .delete()
+      .eq("problem_id", problem.id)
+
+    if (deleteTagError) {
+      console.error("タグ紐付け削除エラー:", deleteTagError.message)
+      setErrorMessage(`タグの更新に失敗しました：${deleteTagError.message}`)
+      setIsUpdatingProblem(false)
+      return
+    }
+
+    const inserts = selectedEditTagIds.map((tagId) => ({
+      problem_id: problem.id,
+      tag_id: tagId,
+    }))
+
+    const { error: insertTagError } = await supabase.from("problem_tags").insert(inserts)
+
+    if (insertTagError) {
+      console.error("タグ紐付け作成エラー:", insertTagError.message)
+      setErrorMessage(`タグの保存に失敗しました：${insertTagError.message}`)
       setIsUpdatingProblem(false)
       return
     }
@@ -898,6 +1016,150 @@ export default function ProblemDetailPage() {
               <LatexHelpChips />
             </div>
 
+            <div style={{ marginBottom: "22px" }}>
+              <label
+                style={{
+                  display: "block",
+                  color: COLORS.navy,
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  marginBottom: "8px",
+                }}
+              >
+                タグ
+              </label>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: COLORS.slate,
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  lineHeight: 1.7,
+                }}
+              >
+                既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <input
+                  value={newEditTagName}
+                  onChange={(e) => setNewEditTagName(e.target.value)}
+                  placeholder="タグを入力"
+                  style={{
+                    flex: "1 1 260px",
+                    height: "48px",
+                    borderRadius: RADII.md,
+                    border: `1px solid ${COLORS.lineStrong}`,
+                    backgroundColor: COLORS.surface,
+                    color: COLORS.text,
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    padding: "0 14px",
+                    outline: "none",
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleAddEditTag}
+                  style={{
+                    minHeight: "48px",
+                    padding: "0 20px",
+                    borderRadius: RADII.md,
+                    border: "none",
+                    backgroundColor: COLORS.navy,
+                    color: "#FFFFFF",
+                    fontSize: "15px",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  追加
+                </button>
+              </div>
+
+              {editTagSuggestions.length > 0 && (
+                <div
+                  style={{
+                    border: `1px solid ${COLORS.line}`,
+                    borderRadius: RADII.md,
+                    backgroundColor: COLORS.surface,
+                    overflow: "hidden",
+                    marginBottom: "16px",
+                  }}
+                >
+                  {editTagSuggestions.map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedEditTagIds((prev) =>
+                          prev.includes(tag.id) ? prev : [...prev, tag.id]
+                        )
+                        setNewEditTagName("")
+                        setEditTagSuggestions([])
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        border: "none",
+                        borderBottom: `1px solid ${COLORS.line}`,
+                        backgroundColor: COLORS.surface,
+                        color: COLORS.navy,
+                        padding: "12px 14px",
+                        fontSize: "15px",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      #{tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {allTags.map((tag) => {
+                  const selected = selectedEditTagIds.includes(tag.id)
+
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleEditTag(tag.id)}
+                      style={{
+                        border: `1px solid ${selected ? COLORS.teal : COLORS.line}`,
+                        borderRadius: RADII.pill,
+                        backgroundColor: selected ? COLORS.teal : COLORS.tagBg,
+                        color: selected ? "#FFFFFF" : COLORS.tagText,
+                        padding: "8px 15px",
+                        fontSize: "14px",
+                        fontWeight: 900,
+                        cursor: "pointer",
+                      }}
+                    >
+                      #{tag.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <div
               style={{
                 display: "flex",
@@ -911,6 +1173,9 @@ export default function ProblemDetailPage() {
                   setIsEditingProblem(false)
                   setEditTitle(problem.title)
                   setEditContent(problem.content ?? "")
+                  setSelectedEditTagIds(problem.tagIds)
+                  setNewEditTagName("")
+                  setEditTagSuggestions([])
                   setEditContentMode("input")
                 }}
               >
@@ -1023,7 +1288,10 @@ export default function ProblemDetailPage() {
                   onClick={() => {
                     setEditTitle(problem.title)
                     setEditContent(problem.content ?? "")
+                    setSelectedEditTagIds(problem.tagIds)
                     setEditContentMode("input")
+                    setNewEditTagName("")
+                    setEditTagSuggestions([])
                     setIsEditingProblem(true)
                   }}
                 >

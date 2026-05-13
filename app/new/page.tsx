@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
 import PageShell from "@/components/ui/PageShell"
@@ -14,21 +15,6 @@ import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 type Tag = {
   id: string
   name: string
-}
-
-function BackIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M12 19l-7-7 7-7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
 }
 
 function ImageIcon({ size = 20 }: { size?: number }) {
@@ -342,53 +328,18 @@ export default function NewProblemPage() {
     setMessage("投稿しました！")
 
     setTimeout(() => {
-      router.push(`/problems/${problem.id}`)
+      router.replace(`/problems/${problem.id}`)
     }, 700)
   }
 
   return (
     <PageShell>
-      <nav
-        style={{
-          marginBottom: "28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => router.back()}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            color: COLORS.teal,
-            fontSize: "17px",
-            fontWeight: 900,
-            textDecoration: "none",
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          <BackIcon />
-          戻る
-        </button>
-
-        <div
-          style={{
-            color: COLORS.slate,
-            fontSize: "15px",
-            fontWeight: 700,
-          }}
-        >
-          問ログ / 問題投稿
-        </div>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "問ログ", href: "/" },
+          { label: "問題投稿" },
+        ]}
+      />
 
       <header
         style={{

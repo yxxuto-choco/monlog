@@ -4,6 +4,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import UserMiniBadge from "@/components/UserMiniBadge"
+import PageShell from "@/components/ui/PageShell"
+import MessageBox from "@/components/ui/MessageBox"
 
 /* =========================================================
   問ログ Design System
@@ -87,28 +89,6 @@ function SparkleIcon({ size = 22 }: { size?: number }) {
 /* =========================================================
   共通小部品
 ========================================================= */
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: COLORS.paper,
-        color: COLORS.text,
-        padding: "32px 0 72px",
-      }}
-    >
-      <div
-        style={{
-          width: "min(980px, calc(100vw - 48px))",
-          margin: "0 auto",
-        }}
-      >
-        {children}
-      </div>
-    </main>
-  )
-}
-
 function Breadcrumb() {
   return (
     <nav
@@ -147,34 +127,6 @@ function Breadcrumb() {
         問ログ / プロフィール設定
       </div>
     </nav>
-  )
-}
-
-function MessageBox({
-  type,
-  children,
-}: {
-  type: "error" | "success"
-  children: React.ReactNode
-}) {
-  const isError = type === "error"
-
-  return (
-    <div
-      style={{
-        marginBottom: "18px",
-        borderRadius: "16px",
-        padding: "16px 18px",
-        backgroundColor: isError ? "#FEF2F2" : COLORS.softYellow,
-        border: `1px solid ${isError ? "#FCA5A5" : COLORS.line}`,
-        color: isError ? COLORS.danger : COLORS.success,
-        fontSize: "15px",
-        fontWeight: 900,
-        lineHeight: 1.7,
-      }}
-    >
-      {children}
-    </div>
   )
 }
 

@@ -1,25 +1,25 @@
 "use client"
 
-import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
-import ProblemMarkdown from "@/components/ProblemMarkdown"
-import LatexTemplateSelector from "@/components/LatexTemplateSelector"
-import LatexHelpChips from "@/components/editor/LatexHelpChips"
+import MarkdownEditor from "@/components/editor/MarkdownEditor"
+import ImageIcon from "@/components/icons/ImageIcon"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
-import ModeButton from "@/components/ui/ModeButton"
+import TextInput from "@/components/ui/TextInput"
+import FieldLabel from "@/components/ui/FieldLabel"
+import FieldDescription from "@/components/ui/FieldDescription"
+import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
+import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-import ImageIcon from "@/components/icons/ImageIcon"
 
 type Tag = {
   id: string
   name: string
 }
-
 
 export default function NewProblemPage() {
   const router = useRouter()
@@ -300,206 +300,86 @@ export default function NewProblemPage() {
         }}
       >
         <div style={{ marginBottom: "28px" }}>
-          <label
-            style={{
-              display: "block",
-              color: COLORS.navy,
-              fontSize: "20px",
-              fontWeight: 900,
-              marginBottom: "8px",
-            }}
-          >
-            タイトル
-          </label>
+          <FieldLabel>タイトル</FieldLabel>
+          <div style={{ marginBottom: "14px" }}>
+            <FieldDescription>
+              一覧や詳細ページで最も目立つ名前です。問題の内容が分かる短いタイトルにしてください。
+            </FieldDescription>
+          </div>
 
-          <p
-            style={{
-              margin: "0 0 14px",
-              color: COLORS.slate,
-              fontSize: "14px",
-              fontWeight: 700,
-              lineHeight: 1.7,
-            }}
-          >
-            一覧や詳細ページで最も目立つ名前です。問題の内容が分かる短いタイトルにしてください。
-          </p>
-
-          <input
+          <TextInput
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例：2026年 東大理系数学 第1問"
-            style={{
-              width: "100%",
-              height: "62px",
-              borderRadius: RADII.md,
-              border: `1px solid ${COLORS.lineStrong}`,
-              backgroundColor: COLORS.surface,
-              color: COLORS.text,
-              fontSize: "18px",
-              fontWeight: 700,
-              padding: "0 18px",
-              outline: "none",
-            }}
+            height="62px"
+            fontSize="18px"
+            fontWeight={700}
           />
         </div>
 
         <div style={{ marginBottom: "30px" }}>
-          <label
-            style={{
-              display: "block",
-              color: COLORS.navy,
-              fontSize: "20px",
-              fontWeight: 900,
-              marginBottom: "8px",
-            }}
-          >
-            問題内容
-          </label>
-
-          <p
-            style={{
-              margin: "0 0 12px",
-              color: COLORS.slate,
-              fontSize: "14px",
-              fontWeight: 700,
-              lineHeight: 1.7,
-            }}
-          >
-            文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-            で囲んでください。投稿前にプレビューで確認できます。
-          </p>
-
-          <LatexTemplateSelector onInsert={insertLatexTemplate} />
-
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              marginBottom: "14px",
-              flexWrap: "wrap",
-            }}
-          >
-            <ModeButton active={contentMode === "input"} onClick={() => setContentMode("input")}>
-              入力
-            </ModeButton>
-
-            <ModeButton
-              active={contentMode === "preview"}
-              onClick={() => setContentMode("preview")}
-            >
-              プレビュー
-            </ModeButton>
-
-            <label
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                minHeight: "40px",
-                padding: "0 18px",
-                borderRadius: RADII.pill,
-                border: `1px solid ${COLORS.lineStrong}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.navy,
-                fontSize: "15px",
-                fontWeight: 900,
-                cursor: isUploadingImage ? "not-allowed" : "pointer",
-                opacity: isUploadingImage ? 0.65 : 1,
-              }}
-            >
-              <ImageIcon />
-              {isUploadingImage ? "画像アップロード中..." : "画像を挿入"}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={isUploadingImage}
-                onChange={(e) => {
-                  const file = e.target.files?.[0] ?? null
-                  handleImageUpload(file)
-                  e.currentTarget.value = ""
-                }}
-                style={{ display: "none" }}
-              />
-            </label>
+          <FieldLabel>問題内容</FieldLabel>
+          <div style={{ marginBottom: "12px" }}>
+            <FieldDescription>
+              文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+              で囲んでください。投稿前にプレビューで確認できます。
+            </FieldDescription>
           </div>
 
-          {contentMode === "input" ? (
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={12}
-              placeholder="ここに問題文を入力してください。"
-              style={{
-                width: "100%",
-                resize: "vertical",
-                borderRadius: "16px",
-                border: `1px solid ${COLORS.lineStrong}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.text,
-                fontSize: "17px",
-                lineHeight: 1.8,
-                padding: "18px 20px",
-                outline: "none",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                minHeight: "280px",
-                borderRadius: "16px",
-                border: `1px solid ${COLORS.lineStrong}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.text,
-                fontSize: "17px",
-                lineHeight: 1.8,
-                padding: "18px 20px",
-              }}
-            >
-              {content.trim() ? (
-                <ProblemMarkdown content={content} />
-              ) : (
-                <p
-                  style={{
-                    margin: 0,
-                    color: COLORS.muted,
-                    fontSize: "15px",
-                    lineHeight: 1.8,
+          <MarkdownEditor
+            value={content}
+            onChange={setContent}
+            mode={contentMode}
+            onModeChange={setContentMode}
+            onInsertLatex={insertLatexTemplate}
+            rows={12}
+            previewMinHeight="280px"
+            placeholder="ここに問題文を入力してください。"
+            emptyPreviewText="ここに問題内容のプレビューが表示されます。"
+            extraToolbarContent={
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  minHeight: "40px",
+                  padding: "0 18px",
+                  borderRadius: RADII.pill,
+                  border: `1px solid ${COLORS.lineStrong}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.navy,
+                  fontSize: "15px",
+                  fontWeight: 900,
+                  cursor: isUploadingImage ? "not-allowed" : "pointer",
+                  opacity: isUploadingImage ? 0.65 : 1,
+                }}
+              >
+                <ImageIcon />
+                {isUploadingImage ? "画像アップロード中..." : "画像を挿入"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploadingImage}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    handleImageUpload(file)
+                    e.currentTarget.value = ""
                   }}
-                >
-                  ここに問題内容のプレビューが表示されます。
-                </p>
-              )}
-            </div>
-          )}
-
-          <LatexHelpChips />
+                  style={{ display: "none" }}
+                />
+              </label>
+            }
+          />
         </div>
 
         <div style={{ marginBottom: "30px" }}>
-          <label
-            style={{
-              display: "block",
-              color: COLORS.navy,
-              fontSize: "20px",
-              fontWeight: 900,
-              marginBottom: "8px",
-            }}
-          >
-            タグ
-          </label>
-
-          <p
-            style={{
-              margin: "0 0 14px",
-              color: COLORS.slate,
-              fontSize: "14px",
-              fontWeight: 700,
-              lineHeight: 1.7,
-            }}
-          >
-            分野、難易度、テーマなどをタグで整理します。既存タグを選ぶか、新しく追加できます。
-          </p>
+          <FieldLabel>タグ</FieldLabel>
+          <div style={{ marginBottom: "14px" }}>
+            <FieldDescription>
+              分野、難易度、テーマなどをタグで整理します。既存タグを選ぶか、新しく追加できます。
+            </FieldDescription>
+          </div>
 
           <div
             style={{
@@ -509,23 +389,16 @@ export default function NewProblemPage() {
               flexWrap: "wrap",
             }}
           >
-            <input
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="タグを入力"
-              style={{
-                flex: "1 1 260px",
-                height: "48px",
-                borderRadius: RADII.md,
-                border: `1px solid ${COLORS.lineStrong}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.text,
-                fontSize: "16px",
-                fontWeight: 700,
-                padding: "0 14px",
-                outline: "none",
-              }}
-            />
+            <div style={{ flex: "1 1 260px" }}>
+              <TextInput
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="タグを入力"
+                height="48px"
+                fontSize="16px"
+                fontWeight={700}
+              />
+            </div>
 
             <button
               type="button"
@@ -596,47 +469,20 @@ export default function NewProblemPage() {
               const selected = selectedTags.includes(tag.id)
 
               return (
-                <button
+                <TagButton
                   key={tag.id}
-                  type="button"
+                  name={tag.name}
+                  selected={selected}
                   onClick={() => toggleTag(tag.id)}
-                  style={{
-                    border: `1px solid ${selected ? COLORS.teal : COLORS.line}`,
-                    borderRadius: RADII.pill,
-                    backgroundColor: selected ? COLORS.teal : COLORS.tagBg,
-                    color: selected ? "#FFFFFF" : COLORS.tagText,
-                    padding: "8px 15px",
-                    fontSize: "14px",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  #{tag.name}
-                </button>
+                />
               )
             })}
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          style={{
-            width: "100%",
-            minHeight: "64px",
-            border: "none",
-            borderRadius: RADII.md,
-            backgroundColor: COLORS.navy,
-            color: "#FFFFFF",
-            fontSize: "20px",
-            fontWeight: 900,
-            cursor: isSubmitting ? "not-allowed" : "pointer",
-            opacity: isSubmitting ? 0.7 : 1,
-          }}
-        >
+        <PrimarySubmitButton onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? "投稿中..." : "投稿する"}
-        </button>
+        </PrimarySubmitButton>
       </SectionCard>
     </PageShell>
   )

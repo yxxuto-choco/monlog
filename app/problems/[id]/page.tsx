@@ -8,6 +8,7 @@ import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import UserMiniBadge from "@/components/UserMiniBadge"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
+import LatexHelpChips from "@/components/editor/LatexHelpChips"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
@@ -137,43 +138,6 @@ function getProblemId(paramsId: string | string[] | undefined) {
   return paramsId ?? ""
 }
 
-function LatexHelpChips() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: "10px",
-        flexWrap: "wrap",
-        marginTop: "12px",
-        color: COLORS.slate,
-        fontSize: "13px",
-        fontWeight: 800,
-      }}
-    >
-      <span
-        style={{
-          border: `1px solid ${COLORS.line}`,
-          borderRadius: RADII.sm,
-          backgroundColor: COLORS.softYellow,
-          padding: "5px 9px",
-        }}
-      >
-        インライン数式：{String.raw`$ \frac{1}{2} $`}
-      </span>
-
-      <span
-        style={{
-          border: `1px solid ${COLORS.line}`,
-          borderRadius: RADII.sm,
-          backgroundColor: COLORS.softYellow,
-          padding: "5px 9px",
-        }}
-      >
-        表示数式：{String.raw`$$ \int_0^1 x^2 dx $$`}
-      </span>
-    </div>
-  )
-}
 
 export default function ProblemDetailPage() {
   const params = useParams()

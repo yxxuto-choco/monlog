@@ -12,6 +12,8 @@ import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
+import ActionButton from "@/components/ui/ActionButton"
+import ModeButton from "@/components/ui/ModeButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 type Tag = {
@@ -133,77 +135,6 @@ function formatDate(value: string | null) {
 function getProblemId(paramsId: string | string[] | undefined) {
   if (Array.isArray(paramsId)) return paramsId[0]
   return paramsId ?? ""
-}
-
-function ActionButton({
-  children,
-  onClick,
-  variant = "secondary",
-  disabled = false,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  variant?: "primary" | "secondary" | "danger"
-  disabled?: boolean
-}) {
-  const isPrimary = variant === "primary"
-  const isDanger = variant === "danger"
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "7px",
-        minHeight: "42px",
-        padding: "0 15px",
-        borderRadius: RADII.md,
-        border: `1px solid ${isPrimary ? COLORS.navy : isDanger ? "#FCA5A5" : COLORS.lineStrong}`,
-        backgroundColor: isPrimary ? COLORS.navy : isDanger ? "#FEF2F2" : COLORS.surface,
-        color: isPrimary ? "#FFFFFF" : isDanger ? COLORS.danger : COLORS.navy,
-        fontSize: "14px",
-        fontWeight: 900,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.65 : 1,
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function ModeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        minHeight: "40px",
-        padding: "0 18px",
-        borderRadius: RADII.pill,
-        border: `1px solid ${active ? COLORS.teal : COLORS.lineStrong}`,
-        backgroundColor: active ? COLORS.teal : COLORS.surface,
-        color: active ? "#FFFFFF" : COLORS.navy,
-        fontSize: "15px",
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  )
 }
 
 function LatexHelpChips() {

@@ -7,9 +7,11 @@ import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
+import LatexHelpChips from "@/components/editor/LatexHelpChips"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
+import ModeButton from "@/components/ui/ModeButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 type Tag = {
@@ -41,73 +43,6 @@ function ImageIcon({ size = 20 }: { size?: number }) {
   )
 }
 
-function ModeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        minHeight: "40px",
-        padding: "0 18px",
-        borderRadius: RADII.pill,
-        border: `1px solid ${active ? COLORS.teal : COLORS.lineStrong}`,
-        backgroundColor: active ? COLORS.teal : COLORS.surface,
-        color: active ? "#FFFFFF" : COLORS.navy,
-        fontSize: "15px",
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function LatexHelpChips() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: "10px",
-        flexWrap: "wrap",
-        marginTop: "12px",
-        color: COLORS.slate,
-        fontSize: "13px",
-        fontWeight: 800,
-      }}
-    >
-      <span
-        style={{
-          border: `1px solid ${COLORS.line}`,
-          borderRadius: RADII.sm,
-          backgroundColor: COLORS.softYellow,
-          padding: "5px 9px",
-        }}
-      >
-        インライン数式：{String.raw`$ \frac{1}{2} $`}
-      </span>
-
-      <span
-        style={{
-          border: `1px solid ${COLORS.line}`,
-          borderRadius: RADII.sm,
-          backgroundColor: COLORS.softYellow,
-          padding: "5px 9px",
-        }}
-      >
-        表示数式：{String.raw`$$ \int_0^1 x^2 dx $$`}
-      </span>
-    </div>
-  )
-}
 
 export default function NewProblemPage() {
   const router = useRouter()

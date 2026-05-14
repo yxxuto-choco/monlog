@@ -16,6 +16,10 @@ import StarRating from "@/components/ui/StarRating"
 import ActionButton from "@/components/ui/ActionButton"
 import ModeButton from "@/components/ui/ModeButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
+import CommentIcon from "@/components/icons/CommentIcon"
+import EditIcon from "@/components/icons/EditIcon"
+import TrashIcon from "@/components/icons/TrashIcon"
+
 
 type Tag = {
   id: string
@@ -65,51 +69,6 @@ type Review = {
   comment: string | null
   created_at: string | null
   user_id?: string | null
-}
-
-
-function CommentIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function EditIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function TrashIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M8 6V4h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M6 6l1 15h10l1-15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
 }
 
 function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {

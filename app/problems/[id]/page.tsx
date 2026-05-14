@@ -1,9 +1,10 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import UserMiniBadge from "@/components/UserMiniBadge"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
@@ -63,20 +64,6 @@ type Review = {
   user_id?: string | null
 }
 
-function BackIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M12 19l-7-7 7-7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 function CommentIcon({ size = 22 }: { size?: number }) {
   return (
@@ -786,6 +773,13 @@ export default function ProblemDetailPage() {
   if (isLoading) {
     return (
       <PageShell>
+        <Breadcrumbs
+          items={[
+            { label: "問ログ", href: "/" },
+            { label: "問題一覧", href: "/" },
+            { label: "問題詳細" },
+          ]}
+        />
         <SectionCard>読み込み中...</SectionCard>
       </PageShell>
     )
@@ -794,22 +788,13 @@ export default function ProblemDetailPage() {
   if (!problem) {
     return (
       <PageShell>
-        <Link
-          href="/"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            color: COLORS.teal,
-            fontSize: "17px",
-            fontWeight: 900,
-            textDecoration: "none",
-            marginBottom: "28px",
-          }}
-        >
-          <BackIcon />
-          一覧へ戻る
-        </Link>
+        <Breadcrumbs
+        items={[
+          { label: "問ログ", href: "/" },
+          { label: "問題一覧", href: "/" },
+          { label: "問題詳細" },
+        ]}
+      />
 
         <MessageBox type="error">{errorMessage || "問題が見つかりませんでした。"}</MessageBox>
       </PageShell>
@@ -818,47 +803,13 @@ export default function ProblemDetailPage() {
 
   return (
     <PageShell>
-      <nav
-        style={{
-          marginBottom: "28px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => router.back()}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            color: COLORS.teal,
-            fontSize: "17px",
-            fontWeight: 900,
-            textDecoration: "none",
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          <BackIcon />
-          戻る
-        </button>
-
-        <div
-          style={{
-            color: COLORS.slate,
-            fontSize: "15px",
-            fontWeight: 700,
-          }}
-        >
-          問ログ / 問題詳細
-        </div>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "問ログ", href: "/" },
+          { label: "問題一覧", href: "/" },
+          { label: "問題詳細" },
+        ]}
+      />
 
       {(errorMessage || successMessage) && (
         <div style={{ marginBottom: "22px" }}>

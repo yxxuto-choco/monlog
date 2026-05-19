@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
@@ -687,209 +687,84 @@ export default function ProblemDetailPage() {
         )}
 
         {isEditingProblem ? (
-          <div>
-            <div style={{ marginBottom: "18px" }}>
-              <label
-                style={{
-                  display: "block",
-                  color: COLORS.navy,
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  marginBottom: "8px",
-                }}
-              >
-                タイトル
-              </label>
-
-              <input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "52px",
-                  borderRadius: RADII.md,
-                  border: `1px solid ${COLORS.lineStrong}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.text,
-                  fontSize: "17px",
-                  fontWeight: 800,
-                  padding: "0 16px",
-                  outline: "none",
-                }}
-              />
-            </div>
+          <div style={{ marginBottom: "18px" }}>
+            <FieldLabel size="16px">タイトル</FieldLabel>
+          
+            <TextInput
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+          </div>
 
             <div style={{ marginBottom: "18px" }}>
-              <label
-                style={{
-                  display: "block",
-                  color: COLORS.navy,
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  marginBottom: "8px",
-                }}
-              >
-                問題内容
-              </label>
+  <FieldLabel size="16px">問題内容</FieldLabel>
 
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: COLORS.slate,
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  lineHeight: 1.7,
-                }}
-              >
-                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-                で囲んでください。保存前にプレビューで確認できます。
-              </p>
+  <div style={{ marginBottom: "12px" }}>
+    <FieldDescription>
+      文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+      で囲んでください。保存前にプレビューで確認できます。
+    </FieldDescription>
+  </div>
 
-              <LatexTemplateSelector onInsert={insertEditProblemLatexTemplate} />
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  marginBottom: "14px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <ModeButton
-                  active={editContentMode === "input"}
-                  onClick={() => setEditContentMode("input")}
-                >
-                  入力
-                </ModeButton>
-
-                <ModeButton
-                  active={editContentMode === "preview"}
-                  onClick={() => setEditContentMode("preview")}
-                >
-                  プレビュー
-                </ModeButton>
-              </div>
-
-              {editContentMode === "input" ? (
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  rows={8}
-                  style={{
-                    width: "100%",
-                    resize: "vertical",
-                    borderRadius: "16px",
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.text,
-                    fontSize: "17px",
-                    lineHeight: 1.8,
-                    padding: "16px 18px",
-                    outline: "none",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    minHeight: "210px",
-                    borderRadius: "16px",
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.text,
-                    fontSize: "17px",
-                    lineHeight: 1.8,
-                    padding: "16px 18px",
-                  }}
-                >
-                  {editContent.trim() ? (
-                    <ProblemMarkdown content={editContent} />
-                  ) : (
-                    <p
-                      style={{
-                        margin: 0,
-                        color: COLORS.muted,
-                        fontSize: "15px",
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      ここに問題内容のプレビューが表示されます。
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <LatexHelpChips />
-            </div>
+  <MarkdownEditor
+    value={editContent}
+    onChange={setEditContent}
+    mode={editContentMode}
+    onModeChange={setEditContentMode}
+    onInsertLatex={insertEditProblemLatexTemplate}
+    rows={8}
+    previewMinHeight="210px"
+    placeholder="ここに問題内容を入力してください。"
+    emptyPreviewText="ここに問題内容のプレビューが表示されます。"
+  />
+</div>
 
             <div style={{ marginBottom: "22px" }}>
-              <label
-                style={{
-                  display: "block",
-                  color: COLORS.navy,
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  marginBottom: "8px",
-                }}
-              >
-                タグ
-              </label>
+  <FieldLabel size="16px">タグ</FieldLabel>
 
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: COLORS.slate,
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  lineHeight: 1.7,
-                }}
-              >
-                既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
-              </p>
+  <div style={{ marginBottom: "12px" }}>
+    <FieldDescription>
+      既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
+    </FieldDescription>
+  </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  marginBottom: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <input
-                  value={newEditTagName}
-                  onChange={(e) => setNewEditTagName(e.target.value)}
-                  placeholder="タグを入力"
-                  style={{
-                    flex: "1 1 260px",
-                    height: "48px",
-                    borderRadius: RADII.md,
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.text,
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    padding: "0 14px",
-                    outline: "none",
-                  }}
-                />
+  <div
+    style={{
+      display: "flex",
+      gap: "10px",
+      marginBottom: "12px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div style={{ flex: "1 1 260px" }}>
+      <TextInput
+        value={newEditTagName}
+        onChange={(e) => setNewEditTagName(e.target.value)}
+        placeholder="タグを入力"
+        height="48px"
+        fontSize="16px"
+        fontWeight={700}
+      />
+    </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddEditTag}
-                  style={{
-                    minHeight: "48px",
-                    padding: "0 20px",
-                    borderRadius: RADII.md,
-                    border: "none",
-                    backgroundColor: COLORS.navy,
-                    color: "#FFFFFF",
-                    fontSize: "15px",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  追加
-                </button>
-              </div>
+    <button
+      type="button"
+      onClick={handleAddEditTag}
+      style={{
+        minHeight: "48px",
+        padding: "0 20px",
+        borderRadius: RADII.md,
+        border: "none",
+        backgroundColor: COLORS.navy,
+        color: "#FFFFFF",
+        fontSize: "15px",
+        fontWeight: 900,
+        cursor: "pointer",
+      }}
+    >
+      追加
+    </button>
+  </div>
 
               {editTagSuggestions.length > 0 && (
                 <div
@@ -939,29 +814,18 @@ export default function ProblemDetailPage() {
                   flexWrap: "wrap",
                 }}
               >
-                {allTags.map((tag) => {
-                  const selected = selectedEditTagIds.includes(tag.id)
+             {allTags.map((tag) => {
+  const selected = selectedEditTagIds.includes(tag.id)
 
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleEditTag(tag.id)}
-                      style={{
-                        border: `1px solid ${selected ? COLORS.teal : COLORS.line}`,
-                        borderRadius: RADII.pill,
-                        backgroundColor: selected ? COLORS.teal : COLORS.tagBg,
-                        color: selected ? "#FFFFFF" : COLORS.tagText,
-                        padding: "8px 15px",
-                        fontSize: "14px",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      #{tag.name}
-                    </button>
-                  )
-                })}
+  return (
+    <TagButton
+      key={tag.id}
+      name={tag.name}
+      selected={selected}
+      onClick={() => toggleEditTag(tag.id)}
+    />
+  )
+})}
               </div>
             </div>
 

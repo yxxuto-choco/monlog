@@ -1,5 +1,12 @@
 "use client"
 
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import Breadcrumbs from "@/components/navigation/Breadcrumbs"
+import ProblemMarkdown from "@/components/ProblemMarkdown"
+import UserMiniBadge from "@/components/UserMiniBadge"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
 import LatexHelpChips from "@/components/editor/LatexHelpChips"
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
@@ -14,7 +21,9 @@ import FieldLabel from "@/components/ui/FieldLabel"
 import FieldDescription from "@/components/ui/FieldDescription"
 import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-
+import CommentIcon from "@/components/icons/CommentIcon"
+import EditIcon from "@/components/icons/EditIcon"
+import TrashIcon from "@/components/icons/TrashIcon"
 
 type Tag = {
   id: string

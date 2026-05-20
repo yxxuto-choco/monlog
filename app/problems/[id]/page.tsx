@@ -24,7 +24,7 @@ import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
 import TagLinkPill from "@/components/tags/TagLinkPill"
 import RatingField from "@/components/reviews/RatingField"
-
+import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
 
 
 type Tag = {
@@ -1321,29 +1321,9 @@ export default function ProblemDetailPage() {
                         </ActionButton>
                       </div>
                     </div>
-                  ) : review.comment ? (
-                    <div
-                      style={{
-                        marginTop: "18px",
-                        color: COLORS.text,
-                        fontSize: "17px",
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      <ProblemMarkdown content={review.comment} />
-                    </div>
-                  ) : (
-                    <p
-                      style={{
-                        margin: "18px 0 0",
-                        color: COLORS.muted,
-                        fontSize: "15px",
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      コメントなし
-                    </p>
-                  )}
+                ) : (
+                  <ReviewCommentBody comment={review.comment} />
+                )}
                 </SectionCard>
               )
             })}

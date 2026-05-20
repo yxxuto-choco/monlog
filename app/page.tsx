@@ -11,6 +11,7 @@ import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
+import RepresentativeReviewCard from "@/components/home/RepresentativeReviewCard"
 
 /* =========================================================
   型定義
@@ -1010,72 +1011,10 @@ export default function Home() {
                       </section>
 
                       {representativeReview && (
-                        <SectionCard
-                          variant="yellow"
-                          style={{
-                            padding: "22px 24px",
-                            marginBottom: "24px",
-                            borderRadius: "16px",
-                            boxShadow: "none",
-                          }}
-                        >
-                          {representativeReview.user_id && (
-                            <div style={{ marginBottom: "14px" }}>
-                              <UserMiniBadge
-                                userId={representativeReview.user_id}
-                                size="sm"
-                                showEmail={false}
-                              />
-                            </div>
-                          )}
-
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: "14px",
-                              flexWrap: "wrap",
-                              marginBottom: "12px",
-                            }}
-                          >
-                            <p
-                              style={{
-                                margin: 0,
-                                color: COLORS.teal,
-                                fontSize: "17px",
-                                fontWeight: 900,
-                              }}
-                            >
-                              最も評価が高いコメント
-                            </p>
-
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                color: COLORS.navy,
-                                fontSize: "16px",
-                                fontWeight: 900,
-                              }}
-                            >
-                              <StarRating value={representativeReview.rating} size={17} />
-                              {representativeReview.rating.toFixed(1)}
-                            </span>
-                          </div>
-
-                          <div
-                            style={{
-                              margin: 0,
-                              color: COLORS.text,
-                              fontSize: "18px",
-                              lineHeight: 1.8,
-                            }}
-                          >
-                            <ProblemMarkdown content={truncateText(representativeReview.comment, 180)} />
-                          </div>
-                        </SectionCard>
+                        <RepresentativeReviewCard
+                          review={representativeReview}
+                          commentPreview={truncateText(representativeReview.comment, 180)}
+                        />
                       )}
 
                       {p.tags.length > 0 && (

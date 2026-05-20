@@ -11,7 +11,6 @@ import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
-import StarRating from "@/components/ui/StarRating"
 import ActionButton from "@/components/ui/ActionButton"
 import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
 import TextInput from "@/components/ui/TextInput"
@@ -19,13 +18,12 @@ import FieldLabel from "@/components/ui/FieldLabel"
 import FieldDescription from "@/components/ui/FieldDescription"
 import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-import CommentIcon from "@/components/icons/CommentIcon"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
-import TagLinkPill from "@/components/tags/TagLinkPill"
 import RatingField from "@/components/reviews/RatingField"
 import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
 import ReviewSummary from "@/components/reviews/ReviewSummary"
+import ProblemHeader from "@/components/problems/ProblemHeader"
 
 type Tag = {
   id: string
@@ -868,110 +866,26 @@ export default function ProblemDetailPage() {
             </div>
           </div>
         ) : (
-          <>
-            <h1
-              style={{
-                margin: 0,
-                color: COLORS.navy,
-                fontSize: "40px",
-                lineHeight: 1.35,
-                fontWeight: 900,
-                letterSpacing: "-0.03em",
-              }}
-            >
-              {problem.title}
-            </h1>
-
-            <div
-              style={{
-                marginTop: "22px",
-                display: "flex",
-                alignItems: "center",
-                gap: "18px",
-                flexWrap: "wrap",
-                color: COLORS.slate,
-                fontSize: "16px",
-                fontWeight: 700,
-              }}
-            >
-              <span>投稿日: {formatDate(problem.created_at)}</span>
-
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                <StarRating value={averageRating} size={22} />
-                <strong style={{ color: COLORS.navy, fontSize: "22px" }}>
-                  {roundedAverage.toFixed(1)}
-                </strong>
-              </span>
-
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "7px",
-                }}
-              >
-                <CommentIcon size={21} />
-                {reviews.length}件
-              </span>
-            </div>
-
-            {problem.tags.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "10px",
-                  marginTop: "24px",
-                }}
-              >
-              {problem.tags.map((tag) => (
-                <TagLinkPill key={tag} name={tag} />
-              ))}
-              </div>
-            )}
-
-            {isProblemOwner && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                  marginTop: "26px",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <ActionButton
-                  onClick={() => {
-                    setEditTitle(problem.title)
-                    setEditContent(problem.content ?? "")
-                    setSelectedEditTagIds(problem.tagIds)
-                    setEditContentMode("input")
-                    setNewEditTagName("")
-                    setEditTagSuggestions([])
-                    setIsEditingProblem(true)
-                  }}
-                >
-                  <EditIcon />
-                  問題を編集
-                </ActionButton>
-
-                <ActionButton
-                  variant="danger"
-                  onClick={handleDeleteProblem}
-                  disabled={isDeletingProblem}
-                >
-                  <TrashIcon />
-                  {isDeletingProblem ? "削除中..." : "問題を削除"}
-                </ActionButton>
-              </div>
-            )}
-          </>
+        <ProblemHeader
+          title={problem.title}
+          createdAtLabel={formatDate(problem.created_at)}
+          averageRating={roundedAverage}
+          reviewCount={reviews.length}
+          tags={problem.tags}
+          ownerUserId={problem.user_id}
+          isProblemOwner={isProblemOwner}
+          isDeletingProblem={isDeletingProblem}
+          onStartEdit={() => {
+            setEditTitle(problem.title)
+            setEditContent(problem.content ?? "")
+            setSelectedEditTagIds(problem.tagIds)
+            setEditContentMode("input")
+            setNewEditTagName("")
+            setEditTagSuggestions([])
+            setIsEditingProblem(true)
+          }}
+          onDeleteProblem={handleDeleteProblem}
+        />
         )}
       </SectionCard>
 

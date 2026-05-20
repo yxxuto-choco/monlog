@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo } from "react"
 import useMyPageData from "@/hooks/useMyPageData"
+import useMyPageStats from "@/hooks/useMyPageStats"
 import MyProblemList from "@/components/my/MyProblemList"
 import MyProfileCard from "@/components/my/MyProfileCard"
 import MyRatingSummary from "@/components/my/MyRatingSummary"
@@ -28,59 +28,20 @@ function BackIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-function getLevelInfo(activityScore: number) {
-  const levels = [
-    { level: 1, title: "はじめの投稿者", min: 0, next: 50 },
-    { level: 2, title: "問題探索者", min: 50, next: 130 },
-    { level: 3, title: "レビュー職人", min: 130, next: 260 },
-    { level: 4, title: "数学案内人", min: 260, next: 460 },
-    { level: 5, title: "問ログマスター", min: 460, next: null },
-  ]
-
-  const current = [...levels].reverse().find((item) => activityScore >= item.min) ?? levels[0]
-
-  if (current.next === null) {
-    return {
-      ...current,
-      progress: 100,
-      remaining: 0,
-      maxLevel: true,
-    }
-  }
-
-  const span = current.next - current.min
-  const progress = Math.max(0, Math.min(100, ((activityScore - current.min) / span) * 100))
-  const remaining = Math.max(0, current.next - activityScore)
-
-  return {
-    ...current,
-    progress,
-    remaining,
-    maxLevel: false,
-  }
-}
-
 export default function MyPage() {
   const { userId, email, userName, myProblems, myReviews, isLoading, errorMessage } =
     useMyPageData()
-
-  const postCount = myProblems.length
-
-  const simpleAverage = useMemo(() => {
-    if (postCount === 0) return 0
-    return myProblems.reduce((sum, problem) => sum + problem.average, 0) / postCount
-  }, [myProblems, postCount])
-
-  const totalReviewCount = myProblems.reduce((sum, problem) => sum + problem.reviewCount, 0)
-  const totalRatingSum = myProblems.reduce((sum, problem) => sum + problem.ratingSum, 0)
-  const weightedAverage = totalReviewCount === 0 ? 0 : totalRatingSum / totalReviewCount
-
-  const roundedSimpleAverage = Math.floor(simpleAverage * 10) / 10
-  const roundedWeightedAverage = Math.floor(weightedAverage * 10) / 10
-
-  const writtenReviewCount = myReviews.length
-  const activityScore = postCount * 10 + writtenReviewCount * 5 + totalReviewCount * 3
-  const levelInfo = getLevelInfo(activityScore)
+  const {
+    postCount,
+    writtenReviewCount,
+    totalReviewCount,
+    simpleAverage,
+    weightedAverage,
+    roundedSimpleAverage,
+    roundedWeightedAverage,
+    activityScore,
+    levelInfo,
+  } = useMyPageStats(myProblems, myReviews)
 
   if (isLoading) {
     return (

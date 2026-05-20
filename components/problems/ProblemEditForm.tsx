@@ -1,7 +1,7 @@
 "use client"
 
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
-import ImageIcon from "@/components/icons/ImageIcon"
+import ImageInsertButton from "@/components/editor/ImageInsertButton"
 import ActionButton from "@/components/ui/ActionButton"
 import TextInput from "@/components/ui/TextInput"
 import FieldLabel from "@/components/ui/FieldLabel"
@@ -93,38 +93,10 @@ export default function ProblemEditForm({
           placeholder="ここに問題内容を入力してください。"
           emptyPreviewText="ここに問題内容のプレビューが表示されます。"
           extraToolbarContent={
-            <label
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                minHeight: "40px",
-                padding: "0 18px",
-                borderRadius: RADII.pill,
-                border: `1px solid ${COLORS.lineStrong}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.navy,
-                fontSize: "15px",
-                fontWeight: 900,
-                cursor: isUploadingImage ? "not-allowed" : "pointer",
-                opacity: isUploadingImage ? 0.65 : 1,
-              }}
-            >
-              <ImageIcon />
-              {isUploadingImage ? "画像アップロード中..." : "画像を挿入"}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={isUploadingImage}
-                onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null
-                  onImageUpload(file)
-                  event.currentTarget.value = ""
-                }}
-                style={{ display: "none" }}
-              />
-            </label>
+            <ImageInsertButton
+              isUploading={isUploadingImage}
+              onImageSelect={onImageUpload}
+            />
           }
         />
       </div>

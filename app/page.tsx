@@ -8,7 +8,8 @@ import UserMiniBadge from "@/components/UserMiniBadge"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
-import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
+import { COLORS, RADII } from "@/components/ui/designTokens"
+import HomeSearchPanel from "@/components/home/HomeSearchPanel"
 import ProblemListCard from "@/components/home/ProblemListCard"
 
 /* =========================================================
@@ -118,47 +119,6 @@ function LogoutIcon({ size = 22 }: { size?: number }) {
         strokeLinejoin="round"
       />
       <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function SearchIcon({ size = 24 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function CommentIcon({ size = 22 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function ChevronIcon({ opened }: { opened: boolean }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d={opened ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"}
-        stroke="currentColor"
-        strokeWidth="2.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
     </svg>
   )
 }
@@ -628,139 +588,16 @@ export default function Home() {
         </span>
       </section>
 
-      <SectionCard
-        variant="teal"
-        style={{
-          borderLeft: `6px solid ${COLORS.teal}`,
-          borderRadius: RADII.md,
-          padding: "34px 38px",
-          marginBottom: "44px",
+      <HomeSearchPanel
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        query={query}
+        onQueryChange={setQuery}
+        onClearQuery={() => {
+          setQuery("")
+          router.push("/")
         }}
-      >
-        <h2
-          style={{
-            margin: "0 0 26px",
-            color: COLORS.navy,
-            fontSize: "30px",
-            fontWeight: 900,
-          }}
-        >
-          問題を探す
-        </h2>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "24px",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setSortMode("default")}
-              style={{
-                minHeight: "62px",
-                padding: "0 22px",
-                borderRadius: RADII.sm,
-                border: `1px solid ${sortMode === "default" ? COLORS.teal : COLORS.line}`,
-                backgroundColor: sortMode === "default" ? COLORS.teal : COLORS.surface,
-                color: sortMode === "default" ? "#FFFFFF" : COLORS.navy,
-                fontSize: "20px",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              新着順
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSortMode("popular")}
-              style={{
-                minHeight: "62px",
-                padding: "0 22px",
-                borderRadius: RADII.sm,
-                border: `1px solid ${sortMode === "popular" ? COLORS.teal : COLORS.line}`,
-                backgroundColor: sortMode === "popular" ? COLORS.teal : COLORS.surface,
-                color: sortMode === "popular" ? "#FFFFFF" : COLORS.navy,
-                fontSize: "20px",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              人気順
-            </button>
-          </div>
-
-          <div
-            style={{
-              flex: "1 1 420px",
-              position: "relative",
-            }}
-          >
-            <span
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "18px",
-                transform: "translateY(-50%)",
-                color: COLORS.slate,
-                display: "inline-flex",
-              }}
-            >
-              <SearchIcon />
-            </span>
-
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="問題を検索..."
-              style={{
-                width: "100%",
-                height: "62px",
-                borderRadius: RADII.sm,
-                border: `1px solid ${COLORS.line}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.text,
-                fontSize: "19px",
-                padding: "0 18px 0 58px",
-                outline: "none",
-              }}
-            />
-          </div>
-
-          {query.trim() && (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("")
-                router.push("/")
-              }}
-              style={{
-                minHeight: "50px",
-                border: `1px solid ${COLORS.tealLine}`,
-                backgroundColor: COLORS.surface,
-                color: COLORS.teal,
-                borderRadius: RADII.pill,
-                padding: "0 18px",
-                fontSize: "15px",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              解除
-            </button>
-          )}
-        </div>
-      </SectionCard>
+      />
 
       <section>
         <div

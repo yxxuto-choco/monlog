@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import ImageInsertButton from "@/components/editor/ImageInsertButton"
+import ProblemTagSelector from "@/components/tags/ProblemTagSelector"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
@@ -13,7 +14,6 @@ import TextInput from "@/components/ui/TextInput"
 import FieldLabel from "@/components/ui/FieldLabel"
 import FieldDescription from "@/components/ui/FieldDescription"
 import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
-import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
 type Tag = {
@@ -69,6 +69,12 @@ export default function NewProblemPage() {
     setSelectedTags((prev) =>
       prev.includes(id) ? prev.filter((tagId) => tagId !== id) : [...prev, id]
     )
+  }
+
+  function handleSelectSuggestion(tagId: string) {
+    toggleTag(tagId)
+    setNewTagName("")
+    setSuggestions([])
   }
 
   function insertLatexTemplate(latex: string) {
@@ -346,110 +352,17 @@ export default function NewProblemPage() {
         </div>
 
         <div style={{ marginBottom: "30px" }}>
-          <FieldLabel>タグ</FieldLabel>
-          <div style={{ marginBottom: "14px" }}>
-            <FieldDescription>
-              分野、難易度、テーマなどをタグで整理します。既存タグを選ぶか、新しく追加できます。
-            </FieldDescription>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              marginBottom: "12px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ flex: "1 1 260px" }}>
-              <TextInput
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="タグを入力"
-                height="48px"
-                fontSize="16px"
-                fontWeight={700}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleAddTag}
-              style={{
-                minHeight: "48px",
-                padding: "0 20px",
-                borderRadius: RADII.md,
-                border: "none",
-                backgroundColor: COLORS.navy,
-                color: "#FFFFFF",
-                fontSize: "15px",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              追加
-            </button>
-          </div>
-
-          {suggestions.length > 0 && (
-            <div
-              style={{
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: RADII.md,
-                backgroundColor: COLORS.surface,
-                overflow: "hidden",
-                marginBottom: "16px",
-              }}
-            >
-              {suggestions.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => {
-                    toggleTag(tag.id)
-                    setNewTagName("")
-                    setSuggestions([])
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    border: "none",
-                    borderBottom: `1px solid ${COLORS.line}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.navy,
-                    padding: "12px 14px",
-                    fontSize: "15px",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  #{tag.name}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              flexWrap: "wrap",
-            }}
-          >
-            {tags.map((tag) => {
-              const selected = selectedTags.includes(tag.id)
-
-              return (
-                <TagButton
-                  key={tag.id}
-                  name={tag.name}
-                  selected={selected}
-                  onClick={() => toggleTag(tag.id)}
-                />
-              )
-            })}
-          </div>
+          <ProblemTagSelector
+            description="分野、難易度、テーマなどをタグで整理します。既存タグを選ぶか、新しく追加できます。"
+            inputValue={newTagName}
+            onInputChange={setNewTagName}
+            suggestions={suggestions}
+            onSelectSuggestion={handleSelectSuggestion}
+            tags={tags}
+            selectedTagIds={selectedTags}
+            onToggleTag={toggleTag}
+            onAddTag={handleAddTag}
+          />
         </div>
 
         <PrimarySubmitButton onClick={handleSubmit} disabled={isSubmitting}>

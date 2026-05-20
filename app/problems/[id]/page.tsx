@@ -684,11 +684,6 @@ export default function ProblemDetailPage() {
           marginBottom: "28px",
         }}
       >
-        {problem.user_id && (
-          <div style={{ marginBottom: "24px" }}>
-            <UserMiniBadge userId={problem.user_id} size="md" showEmail={false} />
-          </div>
-        )}
 
         {isEditingProblem ? (
           <div>

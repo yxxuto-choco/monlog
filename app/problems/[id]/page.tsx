@@ -7,8 +7,6 @@ import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import ProblemMarkdown from "@/components/ProblemMarkdown"
 import UserMiniBadge from "@/components/UserMiniBadge"
-import LatexTemplateSelector from "@/components/LatexTemplateSelector"
-import LatexHelpChips from "@/components/editor/LatexHelpChips"
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
@@ -16,7 +14,6 @@ import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import ActionButton from "@/components/ui/ActionButton"
 import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
-import ModeButton from "@/components/ui/ModeButton"
 import TextInput from "@/components/ui/TextInput"
 import FieldLabel from "@/components/ui/FieldLabel"
 import FieldDescription from "@/components/ui/FieldDescription"
@@ -1354,93 +1351,26 @@ export default function ProblemDetailPage() {
                       </div>
 
                       <div style={{ marginBottom: "18px" }}>
-                        <label
-                          style={{
-                            display: "block",
-                            color: COLORS.navy,
-                            fontSize: "16px",
-                            fontWeight: 900,
-                            marginBottom: "8px",
-                          }}
-                        >
-                          コメント
-                        </label>
+                        <FieldLabel size="16px">コメント</FieldLabel>
 
-                        <LatexTemplateSelector onInsert={insertEditReviewLatexTemplate} />
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "10px",
-                            marginBottom: "14px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <ModeButton
-                            active={editReviewMode === "input"}
-                            onClick={() => setEditReviewMode("input")}
-                          >
-                            入力
-                          </ModeButton>
-
-                          <ModeButton
-                            active={editReviewMode === "preview"}
-                            onClick={() => setEditReviewMode("preview")}
-                          >
-                            プレビュー
-                          </ModeButton>
+                        <div style={{ marginBottom: "12px" }}>
+                          <FieldDescription>
+                            文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                            で囲んでください。保存前にプレビューで確認できます。
+                          </FieldDescription>
                         </div>
 
-                        {editReviewMode === "input" ? (
-                          <textarea
-                            value={editReviewComment}
-                            onChange={(e) => setEditReviewComment(e.target.value)}
-                            rows={5}
-                            placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
-                            style={{
-                              width: "100%",
-                              resize: "vertical",
-                              borderRadius: "16px",
-                              border: `1px solid ${COLORS.lineStrong}`,
-                              backgroundColor: COLORS.surface,
-                              color: COLORS.text,
-                              fontSize: "17px",
-                              lineHeight: 1.8,
-                              padding: "16px 18px",
-                              outline: "none",
-                            }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              minHeight: "150px",
-                              borderRadius: "16px",
-                              border: `1px solid ${COLORS.lineStrong}`,
-                              backgroundColor: COLORS.surface,
-                              color: COLORS.text,
-                              fontSize: "17px",
-                              lineHeight: 1.8,
-                              padding: "16px 18px",
-                            }}
-                          >
-                            {editReviewComment.trim() ? (
-                              <ProblemMarkdown content={editReviewComment} />
-                            ) : (
-                              <p
-                                style={{
-                                  margin: 0,
-                                  color: COLORS.muted,
-                                  fontSize: "15px",
-                                  lineHeight: 1.8,
-                                }}
-                              >
-                                ここにコメントのプレビューが表示されます。
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        <LatexHelpChips />
+                        <MarkdownEditor
+                          value={editReviewComment}
+                          onChange={setEditReviewComment}
+                          mode={editReviewMode}
+                          onModeChange={setEditReviewMode}
+                          onInsertLatex={insertEditReviewLatexTemplate}
+                          rows={5}
+                          previewMinHeight="150px"
+                          placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
+                          emptyPreviewText="ここにコメントのプレビューが表示されます。"
+                        />
                       </div>
 
                       <div

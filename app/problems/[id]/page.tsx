@@ -11,11 +11,8 @@ import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import ActionButton from "@/components/ui/ActionButton"
-import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
-import TextInput from "@/components/ui/TextInput"
 import FieldLabel from "@/components/ui/FieldLabel"
 import FieldDescription from "@/components/ui/FieldDescription"
-import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
@@ -25,6 +22,7 @@ import ReviewSummary from "@/components/reviews/ReviewSummary"
 import ProblemHeader from "@/components/problems/ProblemHeader"
 import ProblemContentSection from "@/components/problems/ProblemContentSection"
 import ProblemEditForm from "@/components/problems/ProblemEditForm"
+import ReviewCreateForm from "@/components/reviews/ReviewCreateForm"
 
 type Tag = {
   id: string
@@ -768,54 +766,20 @@ export default function ProblemDetailPage() {
         </h2>
 
         {userId ? (
-          <>
-            <SectionCard
-              style={{
-                marginTop: "18px",
-                marginBottom: "22px",
-                padding: "16px 18px",
-                borderRadius: RADII.lg,
-                boxShadow: "none",
-              }}
-            >
-              <UserMiniBadge
-                userId={userId}
-                email={userEmail}
-                userName={userName}
-                size="md"
-                showEmail
-              />
-            </SectionCard>
-
-            <RatingField value={rating} onChange={setRating} />
-
-            <div style={{ marginBottom: "18px" }}>
-              <FieldLabel size="16px">コメント</FieldLabel>
-
-              <div style={{ marginBottom: "12px" }}>
-                <FieldDescription>
-                  文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-                  で囲んでください。投稿前にプレビューで確認できます。
-                </FieldDescription>
-              </div>
-
-              <MarkdownEditor
-                value={comment}
-                onChange={setComment}
-                mode={commentMode}
-                onModeChange={setCommentMode}
-                onInsertLatex={insertCommentLatexTemplate}
-                rows={5}
-                previewMinHeight="150px"
-                placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
-                emptyPreviewText="ここにコメントのプレビューが表示されます。"
-              />
-            </div>
-
-            <PrimarySubmitButton onClick={handleSubmitReview} disabled={isSubmitting}>
-              {isSubmitting ? "投稿中..." : "レビューを投稿する"}
-            </PrimarySubmitButton>
-          </>
+          <ReviewCreateForm
+            userId={userId}
+            userEmail={userEmail}
+            userName={userName}
+            rating={rating}
+            onRatingChange={setRating}
+            comment={comment}
+            onCommentChange={setComment}
+            commentMode={commentMode}
+            onCommentModeChange={setCommentMode}
+            onInsertLatex={insertCommentLatexTemplate}
+            onSubmit={handleSubmitReview}
+            isSubmitting={isSubmitting}
+          />
         ) : (
           <SectionCard
             style={{

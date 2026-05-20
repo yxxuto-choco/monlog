@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import useCurrentProfile from "@/hooks/useCurrentProfile"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
@@ -129,15 +130,13 @@ export default function Home() {
   const [problems, setProblems] = useState<Problem[]>([])
   const [stats, setStats] = useState<Record<string, ReviewStats>>({})
   const [sortMode, setSortMode] = useState<"default" | "popular">("default")
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [expandedProblemIds, setExpandedProblemIds] = useState<string[]>([])
 
   const router = useRouter()
+  const { userId, userEmail, userName } = useCurrentProfile()
 
   useEffect(() => {
     const applyQueryFromUrl = () => {
@@ -150,47 +149,6 @@ export default function Home() {
 
     return () => {
       window.removeEventListener("popstate", applyQueryFromUrl)
-    }
-  }, [])
-
-  useEffect(() => {
-    async function loadUserAndProfile() {
-      const { data } = await supabase.auth.getUser()
-      const user = data.user
-
-      if (!user) {
-        setUserId(null)
-        setUserEmail(null)
-        setUserName(null)
-        return
-      }
-
-      setUserId(user.id)
-      setUserEmail(user.email ?? null)
-
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .maybeSingle()
-
-      if (error) {
-        console.warn("プロフィール取得エラー:", error.message)
-        setUserName(null)
-        return
-      }
-
-      setUserName(profile?.username ?? null)
-    }
-
-    loadUserAndProfile()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUserAndProfile()
-    })
-
-    return () => {
-      listener.subscription.unsubscribe()
     }
   }, [])
 
@@ -283,9 +241,6 @@ export default function Home() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    setUserId(null)
-    setUserEmail(null)
-    setUserName(null)
   }
 
   const filteredProblems = [...problems]

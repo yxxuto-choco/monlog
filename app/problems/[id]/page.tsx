@@ -6,23 +6,20 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import UserMiniBadge from "@/components/UserMiniBadge"
-import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import ActionButton from "@/components/ui/ActionButton"
-import FieldLabel from "@/components/ui/FieldLabel"
-import FieldDescription from "@/components/ui/FieldDescription"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
-import RatingField from "@/components/reviews/RatingField"
 import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
 import ReviewSummary from "@/components/reviews/ReviewSummary"
 import ProblemHeader from "@/components/problems/ProblemHeader"
 import ProblemContentSection from "@/components/problems/ProblemContentSection"
 import ProblemEditForm from "@/components/problems/ProblemEditForm"
 import ReviewCreateForm from "@/components/reviews/ReviewCreateForm"
+import ReviewEditForm from "@/components/reviews/ReviewEditForm"
 
 type Tag = {
   id: string
@@ -951,63 +948,26 @@ export default function ProblemDetailPage() {
                   </div>
 
                   {isEditingThisReview ? (
-                    <div style={{ marginTop: "20px" }}>
-                    <RatingField value={editReviewRating} onChange={setEditReviewRating} />
-
-                      <div style={{ marginBottom: "18px" }}>
-                        <FieldLabel size="16px">コメント</FieldLabel>
-
-                        <div style={{ marginBottom: "12px" }}>
-                          <FieldDescription>
-                            文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-                            で囲んでください。保存前にプレビューで確認できます。
-                          </FieldDescription>
-                        </div>
-
-                        <MarkdownEditor
-                          value={editReviewComment}
-                          onChange={setEditReviewComment}
-                          mode={editReviewMode}
-                          onModeChange={setEditReviewMode}
-                          onInsertLatex={insertEditReviewLatexTemplate}
-                          rows={5}
-                          previewMinHeight="150px"
-                          placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
-                          emptyPreviewText="ここにコメントのプレビューが表示されます。"
-                        />
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "10px",
-                          flexWrap: "wrap",
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        <ActionButton
-                          onClick={() => {
-                            setEditingReviewId(null)
-                            setEditReviewComment("")
-                            setEditReviewRating("5")
-                            setEditReviewMode("input")
-                          }}
-                        >
-                          キャンセル
-                        </ActionButton>
-
-                        <ActionButton
-                          variant="primary"
-                          onClick={() => handleUpdateReview(review.id)}
-                          disabled={isUpdatingReviewId === review.id}
-                        >
-                          {isUpdatingReviewId === review.id ? "保存中..." : "保存する"}
-                        </ActionButton>
-                      </div>
-                    </div>
-                ) : (
-                  <ReviewCommentBody comment={review.comment} />
-                )}
+                    <ReviewEditForm
+                      rating={editReviewRating}
+                      onRatingChange={setEditReviewRating}
+                      comment={editReviewComment}
+                      onCommentChange={setEditReviewComment}
+                      mode={editReviewMode}
+                      onModeChange={setEditReviewMode}
+                      onInsertLatex={insertEditReviewLatexTemplate}
+                      onCancel={() => {
+                        setEditingReviewId(null)
+                        setEditReviewComment("")
+                        setEditReviewRating("5")
+                        setEditReviewMode("input")
+                      }}
+                      onSave={() => handleUpdateReview(review.id)}
+                      isUpdating={isUpdatingReviewId === review.id}
+                    />
+                  ) : (
+                    <ReviewCommentBody comment={review.comment} />
+                  )}
                 </SectionCard>
               )
             })}

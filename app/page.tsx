@@ -12,6 +12,7 @@ import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 import RepresentativeReviewCard from "@/components/home/RepresentativeReviewCard"
+import ProblemPreviewContent from "@/components/home/ProblemPreviewContent"
 
 /* =========================================================
   型定義
@@ -974,41 +975,7 @@ export default function Home() {
                         <span>投稿日: {formatDate(p.created_at)}</span>
                       </div>
 
-                      <section style={{ marginBottom: "28px" }}>
-                        <h4
-                          style={{
-                            margin: "0 0 16px",
-                            color: COLORS.navy,
-                            fontSize: "21px",
-                            fontWeight: 900,
-                          }}
-                        >
-                          問題内容
-                        </h4>
-
-                        {p.content ? (
-                          <div
-                            style={{
-                              color: COLORS.text,
-                              fontSize: "20px",
-                              lineHeight: 1.9,
-                            }}
-                          >
-                            <ProblemMarkdown content={truncateText(p.content, 260)} />
-                          </div>
-                        ) : (
-                          <p
-                            style={{
-                              margin: 0,
-                              color: COLORS.muted,
-                              fontSize: "17px",
-                              lineHeight: 1.8,
-                            }}
-                          >
-                            本文はまだ登録されていません。
-                          </p>
-                        )}
-                      </section>
+                      <ProblemPreviewContent content={p.content} />
 
                       {representativeReview && (
                         <RepresentativeReviewCard

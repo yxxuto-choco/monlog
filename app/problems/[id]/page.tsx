@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import useCurrentProfile from "@/hooks/useCurrentProfile"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
@@ -95,16 +96,13 @@ export default function ProblemDetailPage() {
   const params = useParams()
   const router = useRouter()
   const problemId = getProblemId(params.id as string | string[] | undefined)
+  const { userId, userEmail, userName } = useCurrentProfile()
 
   const [problem, setProblem] = useState<Problem | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
-
-  const [userId, setUserId] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string | null>(null)
 
   const [rating, setRating] = useState("5")
   const [comment, setComment] = useState("")
@@ -217,35 +215,6 @@ export default function ProblemDetailPage() {
     setEditTagSuggestions([])
   }
 
-  async function loadUserAndProfile() {
-    const { data } = await supabase.auth.getUser()
-    const user = data.user
-
-    if (!user) {
-      setUserId(null)
-      setUserEmail(null)
-      setUserName(null)
-      return
-    }
-
-    setUserId(user.id)
-    setUserEmail(user.email ?? null)
-
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (error) {
-      console.warn("プロフィール取得エラー:", error.message)
-      setUserName(null)
-      return
-    }
-
-    setUserName(profile?.username ?? null)
-  }
-
   async function fetchProblem() {
     if (!problemId) return
 
@@ -328,17 +297,8 @@ export default function ProblemDetailPage() {
   }
 
   useEffect(() => {
-    loadUserAndProfile()
     fetchAllTags()
     fetchProblem()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadUserAndProfile()
-    })
-
-    return () => {
-      listener.subscription.unsubscribe()
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problemId])
 

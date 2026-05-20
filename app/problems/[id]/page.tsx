@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
@@ -15,6 +15,7 @@ import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import ActionButton from "@/components/ui/ActionButton"
+import PrimarySubmitButton from "@/components/ui/PrimarySubmitButton"
 import ModeButton from "@/components/ui/ModeButton"
 import TextInput from "@/components/ui/TextInput"
 import FieldLabel from "@/components/ui/FieldLabel"
@@ -1100,124 +1101,31 @@ export default function ProblemDetailPage() {
             </div>
 
             <div style={{ marginBottom: "18px" }}>
-              <label
-                style={{
-                  display: "block",
-                  color: COLORS.navy,
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  marginBottom: "8px",
-                }}
-              >
-                コメント
-              </label>
+              <FieldLabel size="16px">コメント</FieldLabel>
 
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: COLORS.slate,
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  lineHeight: 1.7,
-                }}
-              >
-                文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-                で囲んでください。投稿前にプレビューで確認できます。
-              </p>
-
-              <LatexTemplateSelector onInsert={insertCommentLatexTemplate} />
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  marginBottom: "14px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <ModeButton active={commentMode === "input"} onClick={() => setCommentMode("input")}>
-                  入力
-                </ModeButton>
-
-                <ModeButton
-                  active={commentMode === "preview"}
-                  onClick={() => setCommentMode("preview")}
-                >
-                  プレビュー
-                </ModeButton>
+              <div style={{ marginBottom: "12px" }}>
+                <FieldDescription>
+                  文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                  で囲んでください。投稿前にプレビューで確認できます。
+                </FieldDescription>
               </div>
 
-              {commentMode === "input" ? (
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  rows={5}
-                  placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
-                  style={{
-                    width: "100%",
-                    resize: "vertical",
-                    borderRadius: "16px",
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.text,
-                    fontSize: "17px",
-                    lineHeight: 1.8,
-                    padding: "16px 18px",
-                    outline: "none",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    minHeight: "150px",
-                    borderRadius: "16px",
-                    border: `1px solid ${COLORS.lineStrong}`,
-                    backgroundColor: COLORS.surface,
-                    color: COLORS.text,
-                    fontSize: "17px",
-                    lineHeight: 1.8,
-                    padding: "16px 18px",
-                  }}
-                >
-                  {comment.trim() ? (
-                    <ProblemMarkdown content={comment} />
-                  ) : (
-                    <p
-                      style={{
-                        margin: 0,
-                        color: COLORS.muted,
-                        fontSize: "15px",
-                        lineHeight: 1.8,
-                      }}
-                    >
-                      ここにコメントのプレビューが表示されます。
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <LatexHelpChips />
+              <MarkdownEditor
+                value={comment}
+                onChange={setComment}
+                mode={commentMode}
+                onModeChange={setCommentMode}
+                onInsertLatex={insertCommentLatexTemplate}
+                rows={5}
+                previewMinHeight="150px"
+                placeholder="解法の美しさ、難易度、学習効果などをレビューしてください。"
+                emptyPreviewText="ここにコメントのプレビューが表示されます。"
+              />
             </div>
 
-            <button
-              type="button"
-              onClick={handleSubmitReview}
-              disabled={isSubmitting}
-              style={{
-                width: "100%",
-                minHeight: "62px",
-                border: "none",
-                borderRadius: RADII.md,
-                backgroundColor: COLORS.navy,
-                color: "#FFFFFF",
-                fontSize: "20px",
-                fontWeight: 900,
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                opacity: isSubmitting ? 0.7 : 1,
-              }}
-            >
+            <PrimarySubmitButton onClick={handleSubmitReview} disabled={isSubmitting}>
               {isSubmitting ? "投稿中..." : "レビューを投稿する"}
-            </button>
+            </PrimarySubmitButton>
           </>
         ) : (
           <SectionCard

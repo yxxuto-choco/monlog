@@ -10,6 +10,7 @@ import MessageBox from "@/components/ui/MessageBox"
 import { COLORS, RADII } from "@/components/ui/designTokens"
 import HomeLoginBar from "@/components/home/HomeLoginBar"
 import HomeSearchPanel from "@/components/home/HomeSearchPanel"
+import HomeStatsBar from "@/components/home/HomeStatsBar"
 import ProblemListCard from "@/components/home/ProblemListCard"
 
 /* =========================================================
@@ -377,35 +378,11 @@ export default function Home() {
         onLogout={handleLogout}
       />
 
-      <section
-        style={{
-          display: "flex",
-          gap: "34px",
-          flexWrap: "wrap",
-          marginBottom: "44px",
-          padding: "0 24px",
-          color: COLORS.slate,
-          fontSize: "17px",
-          fontWeight: 700,
-        }}
-      >
-        <span>
-          投稿問題数:{" "}
-          <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>{problems.length}</strong>
-        </span>
-
-        <span>
-          レビュー数:{" "}
-          <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>{totalReviews}</strong>
-        </span>
-
-        <span>
-          表示件数:{" "}
-          <strong style={{ color: COLORS.navy, marginLeft: "8px" }}>
-            {filteredProblems.length}
-          </strong>
-        </span>
-      </section>
+      <HomeStatsBar
+        problemCount={problems.length}
+        reviewCount={totalReviews}
+        visibleCount={filteredProblems.length}
+      />
 
       <HomeSearchPanel
         sortMode={sortMode}

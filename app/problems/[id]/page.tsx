@@ -115,6 +115,7 @@ export default function ProblemDetailPage() {
   const [editContentMode, setEditContentMode] = useState<"input" | "preview">("input")
   const [isUpdatingProblem, setIsUpdatingProblem] = useState(false)
   const [isDeletingProblem, setIsDeletingProblem] = useState(false)
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false)
 
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [selectedEditTagIds, setSelectedEditTagIds] = useState<string[]>([])
@@ -162,6 +163,66 @@ export default function ProblemDetailPage() {
       return needsNewLine ? `${prev}\n\n${latex}` : latex
     })
     setEditContentMode("input")
+  }
+
+  function insertEditImageMarkdown(url: string, fileName: string) {
+    const safeName = fileName.replace(/\.[^/.]+$/, "") || "画像"
+    const markdown = `![${safeName}](${url})`
+
+    setEditContent((prev) => {
+      const needsNewLine = prev.trim().length > 0
+      return needsNewLine ? `${prev}\n\n${markdown}` : markdown
+    })
+
+    setEditContentMode("input")
+  }
+
+  async function handleEditImageUpload(file: File | null) {
+    setErrorMessage("")
+    setSuccessMessage("")
+
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("画像ファイルを選択してください。")
+      return
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !userData.user) {
+      setErrorMessage("画像をアップロードするにはログインが必要です。")
+      return
+    }
+
+    setIsUploadingEditImage(true)
+
+    const ext = file.name.split(".").pop() ?? "png"
+    const filePath = `${userData.user.id}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from("problem-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error("画像アップロードエラー:", uploadError.message)
+      setErrorMessage(`画像アップロードに失敗しました：${uploadError.message}`)
+      setIsUploadingEditImage(false)
+      return
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("problem-images")
+      .getPublicUrl(filePath)
+
+    insertEditImageMarkdown(publicUrlData.publicUrl, file.name)
+    setSuccessMessage("画像を本文に挿入しました。")
+    setIsUploadingEditImage(false)
   }
 
   function toggleEditTag(tagId: string) {
@@ -642,6 +703,8 @@ export default function ProblemDetailPage() {
             editContentMode={editContentMode}
             onEditContentModeChange={setEditContentMode}
             onInsertLatex={insertEditProblemLatexTemplate}
+            onImageUpload={handleEditImageUpload}
+            isUploadingImage={isUploadingEditImage}
             newEditTagName={newEditTagName}
             onNewEditTagNameChange={setNewEditTagName}
             editTagSuggestions={editTagSuggestions}

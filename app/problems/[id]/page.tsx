@@ -1,25 +1,19 @@
-﻿"use client"
+"use client"
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
-import UserMiniBadge from "@/components/UserMiniBadge"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
-import ActionButton from "@/components/ui/ActionButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-import EditIcon from "@/components/icons/EditIcon"
-import TrashIcon from "@/components/icons/TrashIcon"
-import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
-import ReviewSummary from "@/components/reviews/ReviewSummary"
 import ProblemHeader from "@/components/problems/ProblemHeader"
 import ProblemContentSection from "@/components/problems/ProblemContentSection"
 import ProblemEditForm from "@/components/problems/ProblemEditForm"
 import ReviewCreateForm from "@/components/reviews/ReviewCreateForm"
-import ReviewEditForm from "@/components/reviews/ReviewEditForm"
+import ReviewCard from "@/components/reviews/ReviewCard"
 
 type Tag = {
   id: string
@@ -96,7 +90,6 @@ function getProblemId(paramsId: string | string[] | undefined) {
   if (Array.isArray(paramsId)) return paramsId[0]
   return paramsId ?? ""
 }
-
 
 export default function ProblemDetailPage() {
   const params = useParams()
@@ -643,12 +636,12 @@ export default function ProblemDetailPage() {
     return (
       <PageShell>
         <Breadcrumbs
-        items={[
-          { label: "問ログ", href: "/" },
-          { label: "問題一覧", href: "/" },
-          { label: "問題詳細" },
-        ]}
-      />
+          items={[
+            { label: "問ログ", href: "/" },
+            { label: "問題一覧", href: "/" },
+            { label: "問題詳細" },
+          ]}
+        />
 
         <MessageBox type="error">{errorMessage || "問題が見つかりませんでした。"}</MessageBox>
       </PageShell>
@@ -680,8 +673,7 @@ export default function ProblemDetailPage() {
           marginBottom: "28px",
         }}
       >
-
-{isEditingProblem ? (
+        {isEditingProblem ? (
           <ProblemEditForm
             editTitle={editTitle}
             onEditTitleChange={setEditTitle}
@@ -717,26 +709,26 @@ export default function ProblemDetailPage() {
             isUpdatingProblem={isUpdatingProblem}
           />
         ) : (
-        <ProblemHeader
-          title={problem.title}
-          createdAtLabel={formatDate(problem.created_at)}
-          averageRating={roundedAverage}
-          reviewCount={reviews.length}
-          tags={problem.tags}
-          ownerUserId={problem.user_id}
-          isProblemOwner={isProblemOwner}
-          isDeletingProblem={isDeletingProblem}
-          onStartEdit={() => {
-            setEditTitle(problem.title)
-            setEditContent(problem.content ?? "")
-            setSelectedEditTagIds(problem.tagIds)
-            setEditContentMode("input")
-            setNewEditTagName("")
-            setEditTagSuggestions([])
-            setIsEditingProblem(true)
-          }}
-          onDeleteProblem={handleDeleteProblem}
-        />
+          <ProblemHeader
+            title={problem.title}
+            createdAtLabel={formatDate(problem.created_at)}
+            averageRating={roundedAverage}
+            reviewCount={reviews.length}
+            tags={problem.tags}
+            ownerUserId={problem.user_id}
+            isProblemOwner={isProblemOwner}
+            isDeletingProblem={isDeletingProblem}
+            onStartEdit={() => {
+              setEditTitle(problem.title)
+              setEditContent(problem.content ?? "")
+              setSelectedEditTagIds(problem.tagIds)
+              setEditContentMode("input")
+              setNewEditTagName("")
+              setEditTagSuggestions([])
+              setIsEditingProblem(true)
+            }}
+            onDeleteProblem={handleDeleteProblem}
+          />
         )}
       </SectionCard>
 
@@ -871,104 +863,34 @@ export default function ProblemDetailPage() {
         ) : (
           <div style={{ display: "grid", gap: "18px" }}>
             {reviews.map((review) => {
-              const isReviewOwner = Boolean(userId && review.user_id === userId)
               const isEditingThisReview = editingReviewId === review.id
 
               return (
-                <SectionCard
+                <ReviewCard
                   key={review.id}
-                  style={{
-                    padding: "24px 26px",
-                    borderRadius: "20px",
+                  review={review}
+                  currentUserId={userId}
+                  createdAtLabel={formatDate(review.created_at)}
+                  isEditing={isEditingThisReview}
+                  editRating={editReviewRating}
+                  onEditRatingChange={setEditReviewRating}
+                  editComment={editReviewComment}
+                  onEditCommentChange={setEditReviewComment}
+                  editMode={editReviewMode}
+                  onEditModeChange={setEditReviewMode}
+                  onInsertLatex={insertEditReviewLatexTemplate}
+                  onStartEdit={() => startEditReview(review)}
+                  onCancelEdit={() => {
+                    setEditingReviewId(null)
+                    setEditReviewComment("")
+                    setEditReviewRating("5")
+                    setEditReviewMode("input")
                   }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: "16px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "14px",
-                      }}
-                    >
-                      {review.user_id && (
-                        <UserMiniBadge userId={review.user_id} size="sm" showEmail={false} />
-                      )}
-
-                      {!isEditingThisReview && (
-                        <ReviewSummary rating={review.rating} />
-                      )}
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        flexWrap: "wrap",
-                        justifyContent: "flex-end",
-                      }}
-                    >
-                      <p
-                        style={{
-                          margin: 0,
-                          color: COLORS.muted,
-                          fontSize: "14px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {formatDate(review.created_at)}
-                      </p>
-
-                      {isReviewOwner && !isEditingThisReview && (
-                        <>
-                          <ActionButton onClick={() => startEditReview(review)}>
-                            <EditIcon />
-                            編集
-                          </ActionButton>
-
-                          <ActionButton
-                            variant="danger"
-                            onClick={() => handleDeleteReview(review.id)}
-                            disabled={isDeletingReviewId === review.id}
-                          >
-                            <TrashIcon />
-                            {isDeletingReviewId === review.id ? "削除中..." : "削除"}
-                          </ActionButton>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {isEditingThisReview ? (
-                    <ReviewEditForm
-                      rating={editReviewRating}
-                      onRatingChange={setEditReviewRating}
-                      comment={editReviewComment}
-                      onCommentChange={setEditReviewComment}
-                      mode={editReviewMode}
-                      onModeChange={setEditReviewMode}
-                      onInsertLatex={insertEditReviewLatexTemplate}
-                      onCancel={() => {
-                        setEditingReviewId(null)
-                        setEditReviewComment("")
-                        setEditReviewRating("5")
-                        setEditReviewMode("input")
-                      }}
-                      onSave={() => handleUpdateReview(review.id)}
-                      isUpdating={isUpdatingReviewId === review.id}
-                    />
-                  ) : (
-                    <ReviewCommentBody comment={review.comment} />
-                  )}
-                </SectionCard>
+                  onSaveEdit={() => handleUpdateReview(review.id)}
+                  onDelete={() => handleDeleteReview(review.id)}
+                  isUpdating={isUpdatingReviewId === review.id}
+                  isDeleting={isDeletingReviewId === review.id}
+                />
               )
             })}
           </div>

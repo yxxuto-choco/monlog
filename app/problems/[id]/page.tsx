@@ -24,6 +24,7 @@ import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
 import ReviewSummary from "@/components/reviews/ReviewSummary"
 import ProblemHeader from "@/components/problems/ProblemHeader"
 import ProblemContentSection from "@/components/problems/ProblemContentSection"
+import ProblemEditForm from "@/components/problems/ProblemEditForm"
 
 type Tag = {
   id: string
@@ -685,181 +686,41 @@ export default function ProblemDetailPage() {
         }}
       >
 
-        {isEditingProblem ? (
-          <div>
-            <div style={{ marginBottom: "18px" }}>
-              <FieldLabel size="16px">タイトル</FieldLabel>
-
-              <TextInput
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-              />
-            </div>
-
-            <div style={{ marginBottom: "18px" }}>
-              <FieldLabel size="16px">問題内容</FieldLabel>
-
-              <div style={{ marginBottom: "12px" }}>
-                <FieldDescription>
-                  文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-                  で囲んでください。保存前にプレビューで確認できます。
-                </FieldDescription>
-              </div>
-
-              <MarkdownEditor
-                value={editContent}
-                onChange={setEditContent}
-                mode={editContentMode}
-                onModeChange={setEditContentMode}
-                onInsertLatex={insertEditProblemLatexTemplate}
-                rows={8}
-                previewMinHeight="210px"
-                placeholder="ここに問題内容を入力してください。"
-                emptyPreviewText="ここに問題内容のプレビューが表示されます。"
-              />
-            </div>
-
-            <div style={{ marginBottom: "22px" }}>
-              <FieldLabel size="16px">タグ</FieldLabel>
-
-              <div style={{ marginBottom: "12px" }}>
-                <FieldDescription>
-                  既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
-                </FieldDescription>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  marginBottom: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ flex: "1 1 260px" }}>
-                  <TextInput
-                    value={newEditTagName}
-                    onChange={(e) => setNewEditTagName(e.target.value)}
-                    placeholder="タグを入力"
-                    height="48px"
-                    fontSize="16px"
-                    fontWeight={700}
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleAddEditTag}
-                  style={{
-                    minHeight: "48px",
-                    padding: "0 20px",
-                    borderRadius: RADII.md,
-                    border: "none",
-                    backgroundColor: COLORS.navy,
-                    color: "#FFFFFF",
-                    fontSize: "15px",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  追加
-                </button>
-              </div>
-
-              {editTagSuggestions.length > 0 && (
-                <div
-                  style={{
-                    border: `1px solid ${COLORS.line}`,
-                    borderRadius: RADII.md,
-                    backgroundColor: COLORS.surface,
-                    overflow: "hidden",
-                    marginBottom: "16px",
-                  }}
-                >
-                  {editTagSuggestions.map((tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedEditTagIds((prev) =>
-                          prev.includes(tag.id) ? prev : [...prev, tag.id]
-                        )
-                        setNewEditTagName("")
-                        setEditTagSuggestions([])
-                      }}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        textAlign: "left",
-                        border: "none",
-                        borderBottom: `1px solid ${COLORS.line}`,
-                        backgroundColor: COLORS.surface,
-                        color: COLORS.navy,
-                        padding: "12px 14px",
-                        fontSize: "15px",
-                        fontWeight: 800,
-                        cursor: "pointer",
-                      }}
-                    >
-                      #{tag.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {allTags.map((tag) => {
-                  const selected = selectedEditTagIds.includes(tag.id)
-
-                  return (
-                    <TagButton
-                      key={tag.id}
-                      name={tag.name}
-                      selected={selected}
-                      onClick={() => toggleEditTag(tag.id)}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-              }}
-            >
-              <ActionButton
-                onClick={() => {
-                  setIsEditingProblem(false)
-                  setEditTitle(problem.title)
-                  setEditContent(problem.content ?? "")
-                  setSelectedEditTagIds(problem.tagIds)
-                  setNewEditTagName("")
-                  setEditTagSuggestions([])
-                  setEditContentMode("input")
-                }}
-              >
-                キャンセル
-              </ActionButton>
-
-              <ActionButton
-                variant="primary"
-                onClick={handleUpdateProblem}
-                disabled={isUpdatingProblem}
-              >
-                {isUpdatingProblem ? "保存中..." : "保存する"}
-              </ActionButton>
-            </div>
-          </div>
+{isEditingProblem ? (
+          <ProblemEditForm
+            editTitle={editTitle}
+            onEditTitleChange={setEditTitle}
+            editContent={editContent}
+            onEditContentChange={setEditContent}
+            editContentMode={editContentMode}
+            onEditContentModeChange={setEditContentMode}
+            onInsertLatex={insertEditProblemLatexTemplate}
+            newEditTagName={newEditTagName}
+            onNewEditTagNameChange={setNewEditTagName}
+            editTagSuggestions={editTagSuggestions}
+            onSelectTagSuggestion={(tagId) => {
+              setSelectedEditTagIds((prev) =>
+                prev.includes(tagId) ? prev : [...prev, tagId]
+              )
+              setNewEditTagName("")
+              setEditTagSuggestions([])
+            }}
+            allTags={allTags}
+            selectedEditTagIds={selectedEditTagIds}
+            onToggleTag={toggleEditTag}
+            onAddTag={handleAddEditTag}
+            onCancel={() => {
+              setIsEditingProblem(false)
+              setEditTitle(problem.title)
+              setEditContent(problem.content ?? "")
+              setSelectedEditTagIds(problem.tagIds)
+              setNewEditTagName("")
+              setEditTagSuggestions([])
+              setEditContentMode("input")
+            }}
+            onSave={handleUpdateProblem}
+            isUpdatingProblem={isUpdatingProblem}
+          />
         ) : (
         <ProblemHeader
           title={problem.title}

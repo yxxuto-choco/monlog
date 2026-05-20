@@ -23,6 +23,7 @@ import CommentIcon from "@/components/icons/CommentIcon"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
 import TagLinkPill from "@/components/tags/TagLinkPill"
+import RatingSelect from "@/components/reviews/RatingSelect"
 
 type Tag = {
   id: string
@@ -1060,28 +1061,7 @@ export default function ProblemDetailPage() {
                 評価
               </label>
 
-              <select
-                value={rating}
-                onChange={(e) => setRating(e.target.value)}
-                style={{
-                  width: "160px",
-                  height: "48px",
-                  borderRadius: RADII.sm,
-                  border: `1px solid ${COLORS.lineStrong}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.navy,
-                  fontSize: "17px",
-                  fontWeight: 900,
-                  padding: "0 12px",
-                  outline: "none",
-                }}
-              >
-                <option value="5">5</option>
-                <option value="4">4</option>
-                <option value="3">3</option>
-                <option value="2">2</option>
-                <option value="1">1</option>
-              </select>
+              <RatingSelect value={rating} onChange={setRating} />
             </div>
 
             <div style={{ marginBottom: "18px" }}>
@@ -1313,28 +1293,7 @@ export default function ProblemDetailPage() {
                           評価
                         </label>
 
-                        <select
-                          value={editReviewRating}
-                          onChange={(e) => setEditReviewRating(e.target.value)}
-                          style={{
-                            width: "160px",
-                            height: "48px",
-                            borderRadius: RADII.sm,
-                            border: `1px solid ${COLORS.lineStrong}`,
-                            backgroundColor: COLORS.surface,
-                            color: COLORS.navy,
-                            fontSize: "17px",
-                            fontWeight: 900,
-                            padding: "0 12px",
-                            outline: "none",
-                          }}
-                        >
-                          <option value="5">5</option>
-                          <option value="4">4</option>
-                          <option value="3">3</option>
-                          <option value="2">2</option>
-                          <option value="1">1</option>
-                        </select>
+                        <RatingSelect value={editReviewRating} onChange={setEditReviewRating} />
                       </div>
 
                       <div style={{ marginBottom: "18px" }}>

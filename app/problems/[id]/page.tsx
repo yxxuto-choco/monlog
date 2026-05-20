@@ -1,24 +1,19 @@
 "use client"
 
-import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
-import Breadcrumbs from "@/components/navigation/Breadcrumbs"
-import ProblemMarkdown from "@/components/ProblemMarkdown"
-import UserMiniBadge from "@/components/UserMiniBadge"
 import LatexTemplateSelector from "@/components/LatexTemplateSelector"
 import LatexHelpChips from "@/components/editor/LatexHelpChips"
+import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import ActionButton from "@/components/ui/ActionButton"
 import ModeButton from "@/components/ui/ModeButton"
+import TextInput from "@/components/ui/TextInput"
+import FieldLabel from "@/components/ui/FieldLabel"
+import FieldDescription from "@/components/ui/FieldDescription"
+import TagButton from "@/components/tags/TagButton"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-import CommentIcon from "@/components/icons/CommentIcon"
-import EditIcon from "@/components/icons/EditIcon"
-import TrashIcon from "@/components/icons/TrashIcon"
 
 
 type Tag = {
@@ -687,84 +682,85 @@ export default function ProblemDetailPage() {
         )}
 
         {isEditingProblem ? (
-          <div style={{ marginBottom: "18px" }}>
-            <FieldLabel size="16px">タイトル</FieldLabel>
-          
-            <TextInput
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-            />
-          </div>
+          <div>
+            <div style={{ marginBottom: "18px" }}>
+              <FieldLabel size="16px">タイトル</FieldLabel>
+
+              <TextInput
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+              />
+            </div>
 
             <div style={{ marginBottom: "18px" }}>
-  <FieldLabel size="16px">問題内容</FieldLabel>
+              <FieldLabel size="16px">問題内容</FieldLabel>
 
-  <div style={{ marginBottom: "12px" }}>
-    <FieldDescription>
-      文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
-      で囲んでください。保存前にプレビューで確認できます。
-    </FieldDescription>
-  </div>
+              <div style={{ marginBottom: "12px" }}>
+                <FieldDescription>
+                  文章はそのまま入力できます。数式を使いたい場合は $...$ や $$...$$
+                  で囲んでください。保存前にプレビューで確認できます。
+                </FieldDescription>
+              </div>
 
-  <MarkdownEditor
-    value={editContent}
-    onChange={setEditContent}
-    mode={editContentMode}
-    onModeChange={setEditContentMode}
-    onInsertLatex={insertEditProblemLatexTemplate}
-    rows={8}
-    previewMinHeight="210px"
-    placeholder="ここに問題内容を入力してください。"
-    emptyPreviewText="ここに問題内容のプレビューが表示されます。"
-  />
-</div>
+              <MarkdownEditor
+                value={editContent}
+                onChange={setEditContent}
+                mode={editContentMode}
+                onModeChange={setEditContentMode}
+                onInsertLatex={insertEditProblemLatexTemplate}
+                rows={8}
+                previewMinHeight="210px"
+                placeholder="ここに問題内容を入力してください。"
+                emptyPreviewText="ここに問題内容のプレビューが表示されます。"
+              />
+            </div>
 
             <div style={{ marginBottom: "22px" }}>
-  <FieldLabel size="16px">タグ</FieldLabel>
+              <FieldLabel size="16px">タグ</FieldLabel>
 
-  <div style={{ marginBottom: "12px" }}>
-    <FieldDescription>
-      既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
-    </FieldDescription>
-  </div>
+              <div style={{ marginBottom: "12px" }}>
+                <FieldDescription>
+                  既存タグを選択するか、新しいタグを追加できます。タグは1つ以上選択してください。
+                </FieldDescription>
+              </div>
 
-  <div
-    style={{
-      display: "flex",
-      gap: "10px",
-      marginBottom: "12px",
-      flexWrap: "wrap",
-    }}
-  >
-    <div style={{ flex: "1 1 260px" }}>
-      <TextInput
-        value={newEditTagName}
-        onChange={(e) => setNewEditTagName(e.target.value)}
-        placeholder="タグを入力"
-        height="48px"
-        fontSize="16px"
-        fontWeight={700}
-      />
-    </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginBottom: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ flex: "1 1 260px" }}>
+                  <TextInput
+                    value={newEditTagName}
+                    onChange={(e) => setNewEditTagName(e.target.value)}
+                    placeholder="タグを入力"
+                    height="48px"
+                    fontSize="16px"
+                    fontWeight={700}
+                  />
+                </div>
 
-    <button
-      type="button"
-      onClick={handleAddEditTag}
-      style={{
-        minHeight: "48px",
-        padding: "0 20px",
-        borderRadius: RADII.md,
-        border: "none",
-        backgroundColor: COLORS.navy,
-        color: "#FFFFFF",
-        fontSize: "15px",
-        fontWeight: 900,
-        cursor: "pointer",
-      }}
-    >
-      追加
-    </button>
-  </div>
+                <button
+                  type="button"
+                  onClick={handleAddEditTag}
+                  style={{
+                    minHeight: "48px",
+                    padding: "0 20px",
+                    borderRadius: RADII.md,
+                    border: "none",
+                    backgroundColor: COLORS.navy,
+                    color: "#FFFFFF",
+                    fontSize: "15px",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  追加
+                </button>
+              </div>
 
               {editTagSuggestions.length > 0 && (
                 <div
@@ -814,18 +810,18 @@ export default function ProblemDetailPage() {
                   flexWrap: "wrap",
                 }}
               >
-             {allTags.map((tag) => {
-  const selected = selectedEditTagIds.includes(tag.id)
+                {allTags.map((tag) => {
+                  const selected = selectedEditTagIds.includes(tag.id)
 
-  return (
-    <TagButton
-      key={tag.id}
-      name={tag.name}
-      selected={selected}
-      onClick={() => toggleEditTag(tag.id)}
-    />
-  )
-})}
+                  return (
+                    <TagButton
+                      key={tag.id}
+                      name={tag.name}
+                      selected={selected}
+                      onClick={() => toggleEditTag(tag.id)}
+                    />
+                  )
+                })}
               </div>
             </div>
 

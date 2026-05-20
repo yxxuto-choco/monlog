@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
-import ImageIcon from "@/components/icons/ImageIcon"
+import ImageInsertButton from "@/components/editor/ImageInsertButton"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
@@ -337,38 +337,10 @@ export default function NewProblemPage() {
             placeholder="ここに問題文を入力してください。"
             emptyPreviewText="ここに問題内容のプレビューが表示されます。"
             extraToolbarContent={
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  minHeight: "40px",
-                  padding: "0 18px",
-                  borderRadius: RADII.pill,
-                  border: `1px solid ${COLORS.lineStrong}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.navy,
-                  fontSize: "15px",
-                  fontWeight: 900,
-                  cursor: isUploadingImage ? "not-allowed" : "pointer",
-                  opacity: isUploadingImage ? 0.65 : 1,
-                }}
-              >
-                <ImageIcon />
-                {isUploadingImage ? "画像アップロード中..." : "画像を挿入"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={isUploadingImage}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null
-                    handleImageUpload(file)
-                    e.currentTarget.value = ""
-                  }}
-                  style={{ display: "none" }}
-                />
-              </label>
+              <ImageInsertButton
+                isUploading={isUploadingImage}
+                onImageSelect={handleImageUpload}
+              />
             }
           />
         </div>

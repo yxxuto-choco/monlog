@@ -25,7 +25,7 @@ import TrashIcon from "@/components/icons/TrashIcon"
 import TagLinkPill from "@/components/tags/TagLinkPill"
 import RatingField from "@/components/reviews/RatingField"
 import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
-
+import ReviewSummary from "@/components/reviews/ReviewSummary"
 
 type Tag = {
   id: string
@@ -1205,24 +1205,7 @@ export default function ProblemDetailPage() {
                       )}
 
                       {!isEditingThisReview && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px",
-                          }}
-                        >
-                          <StarRating value={review.rating} size={20} />
-                          <span
-                            style={{
-                              color: COLORS.navy,
-                              fontSize: "20px",
-                              fontWeight: 900,
-                            }}
-                          >
-                            {review.rating.toFixed(1)}
-                          </span>
-                        </div>
+                        <ReviewSummary rating={review.rating} />
                       )}
                     </div>
 

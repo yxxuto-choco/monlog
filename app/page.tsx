@@ -5,14 +5,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import UserMiniBadge from "@/components/UserMiniBadge"
-import ProblemMarkdown from "@/components/ProblemMarkdown"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
 import MessageBox from "@/components/ui/MessageBox"
-import StarRating from "@/components/ui/StarRating"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
-import RepresentativeReviewCard from "@/components/home/RepresentativeReviewCard"
-import ProblemPreviewContent from "@/components/home/ProblemPreviewContent"
+import ProblemListCard from "@/components/home/ProblemListCard"
 
 /* =========================================================
   型定義
@@ -823,222 +820,24 @@ export default function Home() {
               const opened = isExpanded(p.id)
 
               return (
-                <article
+                <ProblemListCard
                   key={p.id}
-                  style={{
-                    backgroundColor: COLORS.surface,
-                    border: `1px solid ${
-                      opened ? "rgba(42, 157, 143, 0.48)" : COLORS.cardLine
-                    }`,
-                    borderRadius: RADII.xl,
-                    boxShadow: SHADOWS.cardStrong,
-                    overflow: "hidden",
+                  problem={p}
+                  average={average}
+                  roundedAverage={rounded}
+                  reviewCount={count}
+                  representativeReview={representativeReview}
+                  opened={opened}
+                  createdAtLabel={formatDate(p.created_at)}
+                  representativeCommentPreview={
+                    representativeReview ? truncateText(representativeReview.comment, 180) : null
+                  }
+                  onToggle={() => toggleProblem(p.id)}
+                  onTagClick={(tag) => {
+                    setQuery(tag)
+                    router.push(`/?q=${encodeURIComponent(tag)}`)
                   }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleProblem(p.id)}
-                    aria-expanded={opened}
-                    style={{
-                      width: "100%",
-                      border: "none",
-                      background: "transparent",
-                      padding: opened ? "30px 36px" : "34px 36px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: "22px",
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-                        {p.user_id && (
-                          <div style={{ marginBottom: "18px" }}>
-                            <UserMiniBadge userId={p.user_id} size="sm" showEmail={false} />
-                          </div>
-                        )}
-
-                        <h3
-                          style={{
-                            margin: 0,
-                            color: COLORS.navy,
-                            fontSize: "26px",
-                            lineHeight: 1.45,
-                            fontWeight: 900,
-                          }}
-                        >
-                          {p.title}
-                        </h3>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "14px",
-                            flexWrap: "wrap",
-                            marginTop: "20px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "8px",
-                              color: COLORS.navy,
-                              fontSize: "20px",
-                              fontWeight: 900,
-                            }}
-                          >
-                            <StarRating value={average} />
-                            {rounded.toFixed(1)}
-                          </span>
-
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "7px",
-                              color: COLORS.slate,
-                              fontSize: "18px",
-                              fontWeight: 700,
-                            }}
-                          >
-                            <CommentIcon size={22} />
-                            {count}件
-                          </span>
-                        </div>
-                      </div>
-
-                      <span
-                        style={{
-                          color: COLORS.slate,
-                          marginTop: "8px",
-                          flex: "0 0 auto",
-                        }}
-                      >
-                        <ChevronIcon opened={opened} />
-                      </span>
-                    </div>
-
-                    {!opened && p.tags.length > 0 && (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "12px",
-                          marginTop: "22px",
-                        }}
-                      >
-                        {p.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            style={{
-                              borderRadius: RADII.pill,
-                              backgroundColor: COLORS.tagBg,
-                              color: COLORS.tagText,
-                              padding: "8px 18px",
-                              fontSize: "18px",
-                              fontWeight: 900,
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </button>
-
-                  {opened && (
-                    <div
-                      style={{
-                        borderTop: `1px solid ${COLORS.line}`,
-                        padding: "28px 36px 36px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "16px",
-                          flexWrap: "wrap",
-                          color: COLORS.slate,
-                          fontSize: "17px",
-                          fontWeight: 700,
-                          marginBottom: "24px",
-                        }}
-                      >
-                        <span>投稿日: {formatDate(p.created_at)}</span>
-                      </div>
-
-                      <ProblemPreviewContent content={p.content} />
-
-                      {representativeReview && (
-                        <RepresentativeReviewCard
-                          review={representativeReview}
-                          commentPreview={truncateText(representativeReview.comment, 180)}
-                        />
-                      )}
-
-                      {p.tags.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "12px",
-                            marginBottom: "26px",
-                          }}
-                        >
-                          {p.tags.map((tag) => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => {
-                                setQuery(tag)
-                                router.push(`/?q=${encodeURIComponent(tag)}`)
-                              }}
-                              style={{
-                                border: "none",
-                                borderRadius: RADII.pill,
-                                backgroundColor: COLORS.tagBg,
-                                color: COLORS.tagText,
-                                padding: "9px 18px",
-                                fontSize: "18px",
-                                fontWeight: 900,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      <Link
-                        href={`/problems/${p.id}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: "100%",
-                          minHeight: "72px",
-                          borderRadius: RADII.md,
-                          backgroundColor: COLORS.navy,
-                          color: "#FFFFFF",
-                          textDecoration: "none",
-                          fontSize: "24px",
-                          fontWeight: 900,
-                        }}
-                      >
-                        詳細を見る
-                      </Link>
-                    </div>
-                  )}
-                </article>
+                />
               )
             })}
           </div>

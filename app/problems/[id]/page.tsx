@@ -22,6 +22,7 @@ import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 import CommentIcon from "@/components/icons/CommentIcon"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
+import TagLinkPill from "@/components/tags/TagLinkPill"
 
 type Tag = {
   id: string
@@ -926,23 +927,9 @@ export default function ProblemDetailPage() {
                   marginTop: "24px",
                 }}
               >
-                {problem.tags.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/?q=${encodeURIComponent(tag)}`}
-                    style={{
-                      borderRadius: RADII.pill,
-                      backgroundColor: COLORS.tagBg,
-                      color: COLORS.tagText,
-                      padding: "9px 18px",
-                      fontSize: "15px",
-                      fontWeight: 900,
-                      textDecoration: "none",
-                    }}
-                  >
-                    #{tag}
-                  </Link>
-                ))}
+              {problem.tags.map((tag) => (
+                <TagLinkPill key={tag} name={tag} />
+              ))}
               </div>
             )}
 

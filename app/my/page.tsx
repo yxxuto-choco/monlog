@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { useMemo } from "react"
+import useMyPageData from "@/hooks/useMyPageData"
 import RandomPixelAvatar from "@/components/RandomPixelAvatar"
 import PageShell from "@/components/ui/PageShell"
 import SectionCard from "@/components/ui/SectionCard"
@@ -10,62 +10,6 @@ import MessageBox from "@/components/ui/MessageBox"
 import StarRating from "@/components/ui/StarRating"
 import { COLORS, RADII, SHADOWS } from "@/components/ui/designTokens"
 
-/* =========================================================
-  型定義
-========================================================= */
-type MyProblem = {
-  id: string
-  title: string
-  content: string | null
-  created_at: string
-  tags: string[]
-  average: number
-  reviewCount: number
-  ratingSum: number
-}
-
-type MyReview = {
-  id: string
-  problem_id: string
-  problem_title: string
-  rating: number
-  comment: string | null
-  created_at: string
-}
-
-type TagRow = {
-  name: string | null
-}
-
-type ProblemTagRow = {
-  tags: TagRow | TagRow[] | null
-}
-
-type ReviewRatingRow = {
-  rating: number | string | null
-}
-
-type ProblemRow = {
-  id: string
-  title: string
-  content: string | null
-  created_at: string
-  problem_tags: ProblemTagRow[] | null
-  reviews: ReviewRatingRow[] | null
-}
-
-type ReviewRow = {
-  id: string
-  problem_id: string
-  rating: number | string | null
-  comment: string | null
-  created_at: string
-  problems: { title: string | null } | { title: string | null }[] | null
-}
-
-/* =========================================================
-  アイコン
-========================================================= */
 function BackIcon({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -109,9 +53,6 @@ function PenIcon({ size = 22 }: { size?: number }) {
   )
 }
 
-/* =========================================================
-  補助関数
-========================================================= */
 function formatDate(value: string | null) {
   if (!value) return ""
   return new Date(value).toISOString().slice(0, 10)
@@ -120,24 +61,6 @@ function formatDate(value: string | null) {
 function truncateText(text: string | null, length: number) {
   if (!text) return ""
   return text.length > length ? `${text.slice(0, length)}...` : text
-}
-
-function getProblemTitle(problems: ReviewRow["problems"]): string {
-  if (Array.isArray(problems)) {
-    return problems[0]?.title ?? "問題タイトル不明"
-  }
-
-  return problems?.title ?? "問題タイトル不明"
-}
-
-function extractTagNames(problemTags: ProblemTagRow[] | null): string[] {
-  return (problemTags ?? [])
-    .map((pt) => {
-      const tags = pt.tags
-      const tag = Array.isArray(tags) ? tags[0] : tags
-      return tag?.name ?? ""
-    })
-    .filter(Boolean)
 }
 
 function getLevelInfo(activityScore: number) {
@@ -172,9 +95,6 @@ function getLevelInfo(activityScore: number) {
   }
 }
 
-/* =========================================================
-  小部品
-========================================================= */
 function StatCard({
   label,
   value,
@@ -185,11 +105,7 @@ function StatCard({
   sub?: string
 }) {
   return (
-    <SectionCard
-      style={{
-        padding: "22px 24px",
-      }}
-    >
+    <SectionCard style={{ padding: "22px 24px" }}>
       <p
         style={{
           margin: 0,
@@ -246,137 +162,9 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   )
 }
 
-/* =========================================================
-  マイページ
-========================================================= */
 export default function MyPage() {
-  const [userId, setUserId] = useState<string | null>(null)
-  const [email, setEmail] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string | null>(null)
-
-  const [myProblems, setMyProblems] = useState<MyProblem[]>([])
-  const [myReviews, setMyReviews] = useState<MyReview[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState("")
-
-  useEffect(() => {
-    async function fetchMyPageData() {
-      setIsLoading(true)
-      setErrorMessage("")
-
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-
-      if (userError || !userData.user) {
-        setUserId(null)
-        setEmail(null)
-        setUserName(null)
-        setMyProblems([])
-        setMyReviews([])
-        setIsLoading(false)
-        return
-      }
-
-      const user = userData.user
-      setUserId(user.id)
-      setEmail(user.email ?? null)
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .maybeSingle()
-
-      setUserName(profileData?.username ?? null)
-
-      const { data: problemsData, error: problemsError } = await supabase
-        .from("problems")
-        .select(`
-          id,
-          title,
-          content,
-          created_at,
-          problem_tags (
-            tags ( name )
-          ),
-          reviews (
-            rating
-          )
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-
-      if (problemsError) {
-        console.warn("自分の投稿取得エラー:", problemsError.message)
-        setErrorMessage("自分の投稿一覧の取得に失敗しました。")
-        setIsLoading(false)
-        return
-      }
-
-      const nextProblems: MyProblem[] = ((problemsData ?? []) as unknown as ProblemRow[]).map(
-        (p) => {
-          const reviews = p.reviews ?? []
-          const ratings = reviews
-            .map((r) => Number(r.rating))
-            .filter((rating) => Number.isFinite(rating))
-
-          const reviewCount = ratings.length
-          const ratingSum = ratings.reduce((sum, rating) => sum + rating, 0)
-          const average = reviewCount === 0 ? 0 : ratingSum / reviewCount
-
-          return {
-            id: p.id,
-            title: p.title,
-            content: p.content,
-            created_at: p.created_at,
-            tags: extractTagNames(p.problem_tags),
-            average,
-            reviewCount,
-            ratingSum,
-          }
-        }
-      )
-
-      setMyProblems(nextProblems)
-
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from("reviews")
-        .select(`
-          id,
-          problem_id,
-          rating,
-          comment,
-          created_at,
-          problems (
-            title
-          )
-        `)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-
-      if (reviewsError) {
-        console.warn("自分のレビュー取得エラー:", reviewsError.message)
-        setErrorMessage("自分のレビュー一覧の取得に失敗しました。")
-        setIsLoading(false)
-        return
-      }
-
-      const nextReviews: MyReview[] = ((reviewsData ?? []) as unknown as ReviewRow[])
-        .map((review) => ({
-          id: review.id,
-          problem_id: review.problem_id,
-          problem_title: getProblemTitle(review.problems),
-          rating: Number(review.rating),
-          comment: review.comment,
-          created_at: review.created_at,
-        }))
-        .filter((review) => Number.isFinite(review.rating))
-
-      setMyReviews(nextReviews)
-      setIsLoading(false)
-    }
-
-    fetchMyPageData()
-  }, [])
+  const { userId, email, userName, myProblems, myReviews, isLoading, errorMessage } =
+    useMyPageData()
 
   const postCount = myProblems.length
 
@@ -424,11 +212,7 @@ export default function MyPage() {
           トップへ戻る
         </Link>
 
-        <SectionCard
-          style={{
-            padding: "36px",
-          }}
-        >
+        <SectionCard style={{ padding: "36px" }}>
           <h1
             style={{
               margin: 0,
@@ -478,9 +262,6 @@ export default function MyPage() {
 
   return (
     <PageShell wide>
-      {/* =====================================================
-        戻る導線
-      ===================================================== */}
       <nav
         style={{
           marginBottom: "28px",
@@ -518,9 +299,6 @@ export default function MyPage() {
         </div>
       </nav>
 
-      {/* =====================================================
-        ページヘッダー
-      ===================================================== */}
       <header
         style={{
           textAlign: "center",
@@ -555,9 +333,6 @@ export default function MyPage() {
 
       {errorMessage && <MessageBox type="error">{errorMessage}</MessageBox>}
 
-      {/* =====================================================
-        プロフィールカード
-      ===================================================== */}
       <SectionCard
         style={{
           padding: "34px",
@@ -737,9 +512,6 @@ export default function MyPage() {
         </SectionCard>
       </SectionCard>
 
-      {/* =====================================================
-        活動サマリー
-      ===================================================== */}
       <section
         style={{
           display: "grid",
@@ -758,9 +530,6 @@ export default function MyPage() {
         />
       </section>
 
-      {/* =====================================================
-        評価サマリー
-      ===================================================== */}
       <SectionCard
         style={{
           padding: "28px 30px",
@@ -865,9 +634,6 @@ export default function MyPage() {
         </div>
       </SectionCard>
 
-      {/* =====================================================
-        自分の投稿一覧
-      ===================================================== */}
       <section style={{ marginBottom: "42px" }}>
         <div
           style={{
@@ -932,12 +698,7 @@ export default function MyPage() {
               const roundedAverage = Math.floor(problem.average * 10) / 10
 
               return (
-                <SectionCard
-                  key={problem.id}
-                  style={{
-                    padding: "28px 30px",
-                  }}
-                >
+                <SectionCard key={problem.id} style={{ padding: "28px 30px" }}>
                   <div
                     style={{
                       display: "flex",
@@ -950,10 +711,7 @@ export default function MyPage() {
                     <div style={{ flex: "1 1 560px" }}>
                       <Link
                         href={`/problems/${problem.id}`}
-                        style={{
-                          color: COLORS.navy,
-                          textDecoration: "none",
-                        }}
+                        style={{ color: COLORS.navy, textDecoration: "none" }}
                       >
                         <h3
                           style={{
@@ -1080,9 +838,6 @@ export default function MyPage() {
         )}
       </section>
 
-      {/* =====================================================
-        自分が書いたレビュー一覧
-      ===================================================== */}
       <section>
         <div
           style={{
@@ -1143,10 +898,7 @@ export default function MyPage() {
                   <div>
                     <Link
                       href={`/problems/${review.problem_id}`}
-                      style={{
-                        color: COLORS.navy,
-                        textDecoration: "none",
-                      }}
+                      style={{ color: COLORS.navy, textDecoration: "none" }}
                     >
                       <h3
                         style={{

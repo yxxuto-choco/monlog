@@ -23,7 +23,9 @@ import CommentIcon from "@/components/icons/CommentIcon"
 import EditIcon from "@/components/icons/EditIcon"
 import TrashIcon from "@/components/icons/TrashIcon"
 import TagLinkPill from "@/components/tags/TagLinkPill"
-import RatingSelect from "@/components/reviews/RatingSelect"
+import RatingField from "@/components/reviews/RatingField"
+
+
 
 type Tag = {
   id: string
@@ -1048,21 +1050,7 @@ export default function ProblemDetailPage() {
               />
             </SectionCard>
 
-            <div style={{ marginBottom: "18px" }}>
-              <label
-                style={{
-                  display: "block",
-                  color: COLORS.navy,
-                  fontSize: "16px",
-                  fontWeight: 900,
-                  marginBottom: "8px",
-                }}
-              >
-                評価
-              </label>
-
-              <RatingSelect value={rating} onChange={setRating} />
-            </div>
+            <RatingField value={rating} onChange={setRating} />
 
             <div style={{ marginBottom: "18px" }}>
               <FieldLabel size="16px">コメント</FieldLabel>
@@ -1280,21 +1268,7 @@ export default function ProblemDetailPage() {
 
                   {isEditingThisReview ? (
                     <div style={{ marginTop: "20px" }}>
-                      <div style={{ marginBottom: "18px" }}>
-                        <label
-                          style={{
-                            display: "block",
-                            color: COLORS.navy,
-                            fontSize: "16px",
-                            fontWeight: 900,
-                            marginBottom: "8px",
-                          }}
-                        >
-                          評価
-                        </label>
-
-                        <RatingSelect value={editReviewRating} onChange={setEditReviewRating} />
-                      </div>
+                    <RatingField value={editReviewRating} onChange={setEditReviewRating} />
 
                       <div style={{ marginBottom: "18px" }}>
                         <FieldLabel size="16px">コメント</FieldLabel>

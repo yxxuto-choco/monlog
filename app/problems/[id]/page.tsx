@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Breadcrumbs from "@/components/navigation/Breadcrumbs"
-import ProblemMarkdown from "@/components/ProblemMarkdown"
 import UserMiniBadge from "@/components/UserMiniBadge"
 import MarkdownEditor from "@/components/editor/MarkdownEditor"
 import PageShell from "@/components/ui/PageShell"
@@ -24,6 +23,7 @@ import RatingField from "@/components/reviews/RatingField"
 import ReviewCommentBody from "@/components/reviews/ReviewCommentBody"
 import ReviewSummary from "@/components/reviews/ReviewSummary"
 import ProblemHeader from "@/components/problems/ProblemHeader"
+import ProblemContentSection from "@/components/problems/ProblemContentSection"
 
 type Tag = {
   id: string
@@ -884,40 +884,7 @@ export default function ProblemDetailPage() {
         )}
       </SectionCard>
 
-      {!isEditingProblem && (
-        <SectionCard
-          style={{
-            padding: "34px 36px",
-            marginBottom: "28px",
-          }}
-        >
-          <h2
-            style={{
-              margin: "0 0 22px",
-              color: COLORS.navy,
-              fontSize: "28px",
-              fontWeight: 900,
-            }}
-          >
-            問題内容
-          </h2>
-
-          {problem.content ? (
-            <ProblemMarkdown content={problem.content} />
-          ) : (
-            <p
-              style={{
-                margin: 0,
-                color: COLORS.muted,
-                fontSize: "17px",
-                lineHeight: 1.8,
-              }}
-            >
-              本文はまだ登録されていません。
-            </p>
-          )}
-        </SectionCard>
-      )}
+      {!isEditingProblem && <ProblemContentSection content={problem.content} />}
 
       <SectionCard
         variant="teal"
